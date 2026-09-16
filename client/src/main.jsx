@@ -34,7 +34,7 @@ function AppShell() {
         page: 'record',
         recordViewed: profile.student.email
       })
-    }).catch(() => {});
+    }).catch(() => { });
     send();
     const id = setInterval(send, 30000);
     return () => clearInterval(id);
@@ -315,13 +315,13 @@ function StudentView({ profile, onBack }) {
         canShareAchievements={!!ach?.sharing}
         onOpenAchievements={() => selectTab('achievements')}
       />
-      <Tabs tab={tab} setTab={selectTab} tabs={[['bank','SP Bank'],
-        ['journey','My Journey'],
-        ...(student.eligibleForVibeGoals ? [['vibe','Commitments']] : []),
-        ['spa','SPA Points'],
-        ...(ach?.visible ? [['achievements','Achievements', unseenAchievements]] : []),
-        ['leaderboard','Leaderboard'],
-        ['faq','FAQ']]} />
+      <Tabs tab={tab} setTab={selectTab} tabs={[['bank', 'SP Bank'],
+      ['journey', 'My Journey'],
+      ...(student.eligibleForVibeGoals ? [['vibe', 'Commitments']] : []),
+      ['spa', 'SPA Points'],
+      ...(ach?.visible ? [['achievements', 'Achievements', unseenAchievements]] : []),
+      ['leaderboard', 'Leaderboard'],
+      ['faq', 'FAQ']]} />
       {tab === 'bank' && <SpBank transactions={profile.transactions} />}
       {tab === 'journey' && <MyJourney student={student} goToCommitment={goToCommitment} canCommit={student.eligibleForVibeGoals} />}
       {tab === 'vibe' && student.eligibleForVibeGoals && <Commitments student={student} initialPhase={commitPhase} />}
@@ -474,7 +474,7 @@ function useAchievements(email) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })
-    }).catch(() => {});
+    }).catch(() => { });
   };
   return [data, markSeen];
 }
@@ -634,7 +634,7 @@ function ShareModal({ item, me, onClose }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: me.email, achId: item.achId, dataUrl: url })
-        }).catch(() => {});
+        }).catch(() => { });
       })
       .catch(() => { if (live) setError('Could not draw the card. Try again.'); });
     return () => { live = false; };
@@ -652,7 +652,7 @@ function ShareModal({ item, me, onClose }) {
       captionEdited: !!generated && caption !== generated,
       captionChars: caption.length
     })
-  }).catch(() => {});
+  }).catch(() => { });
 
   // Two ways to get the picture into the post without the student handling a file:
   //  1. the share sheet, which takes the image itself — phones, and the better path
@@ -720,14 +720,14 @@ function ShareModal({ item, me, onClose }) {
             <li><b>Add the card image to the post</b> — the photo button in the composer, then the file you just downloaded. Skip this and your post is only a link.</li>
             <li><b>Paste the caption</b> (Ctrl+V / Cmd+V).</li>
             <li><b>Tag us, in this order</b> — the lab first, then Sudarshan sir, then Sakshi. Type
-            <b>@Vicharanashala</b> and pick the lab page, then <b>@Sudarshan Iyengar</b>, then <b>@Sakshi</b>.
-            Picking each one from the dropdown is what makes it a real tag — typed text alone doesn't reach
-            anyone. Tag any other mentors from the lab you worked with as well.
-            <span className="tag-links">
-              <a href="https://www.linkedin.com/company/vicharanashala/" target="_blank" rel="noopener">The lab page →</a>
-              <a href="https://www.linkedin.com/in/sudarshan-iyengar-3560b8145/" target="_blank" rel="noopener">Sudarshan sir's profile →</a>
-              <a href="https://www.linkedin.com/in/sakshivk/" target="_blank" rel="noopener">Sakshi's profile →</a>
-            </span></li>
+              <b>@Vicharanashala</b> and pick the lab page, then <b>@Sudarshan Iyengar</b>, then <b>@Sakshi</b>.
+              Picking each one from the dropdown is what makes it a real tag — typed text alone doesn't reach
+              anyone. Tag any other mentors from the lab you worked with as well.
+              <span className="tag-links">
+                <a href="https://www.linkedin.com/company/vicharanashala/" target="_blank" rel="noopener">The lab page →</a>
+                <a href="https://www.linkedin.com/in/sudarshan-iyengar-3560b8145/" target="_blank" rel="noopener">Sudarshan sir's profile →</a>
+                <a href="https://www.linkedin.com/in/sakshivk/" target="_blank" rel="noopener">Sakshi's profile →</a>
+              </span></li>
           </ol>
           <label className="ack">
             <input type="checkbox" checked={readSteps} onChange={e => setReadSteps(e.target.checked)} />
@@ -790,18 +790,18 @@ function VerifyView({ code }) {
 
 // Curated leaderboard presets → each maps to a cached board (window/category/scope).
 const LB_PRESETS = [
-  { key: 'week-total',        label: 'This Week',                          window: 'week', category: 'total',      scope: 'all' },
-  { key: 'week-total-cohort', label: 'This Week — My Cohort',             window: 'week', category: 'total',      scope: 'cohort' },
-  { key: 'all-total',         label: 'All-Time',                          window: 'all',  category: 'total',      scope: 'all' },
-  { key: 'all-total-cohort',  label: 'All-Time — My Cohort',             window: 'all',  category: 'total',      scope: 'cohort' },
-  { key: 'week-attendance',   label: '🏅 Best Attendance — This Week',    window: 'week', category: 'attendance', scope: 'all' },
-  { key: 'all-attendance',    label: '🏅 Best Attendance — All-Time',     window: 'all',  category: 'attendance', scope: 'all' },
-  { key: 'week-poll',         label: '🎯 Poll Champions — This Week',      window: 'week', category: 'poll',       scope: 'all' },
-  { key: 'all-poll',          label: '🎯 Poll Champions — All-Time',       window: 'all',  category: 'poll',       scope: 'all' },
-  { key: 'week-spa',          label: '🧑‍🏫 Top SPA — This Week',           window: 'week', category: 'spa',        scope: 'all' },
-  { key: 'all-spa',           label: '🧑‍🏫 Top SPA — All-Time',            window: 'all',  category: 'spa',        scope: 'all' },
-  { key: 'week-query',        label: '💬 Top Query Answerers — This Week', window: 'week', category: 'query',      scope: 'all' },
-  { key: 'all-query',         label: '💬 Top Query Answerers — All-Time',  window: 'all',  category: 'query',      scope: 'all' },
+  { key: 'week-total', label: 'This Week', window: 'week', category: 'total', scope: 'all' },
+  { key: 'week-total-cohort', label: 'This Week — My Cohort', window: 'week', category: 'total', scope: 'cohort' },
+  { key: 'all-total', label: 'All-Time', window: 'all', category: 'total', scope: 'all' },
+  { key: 'all-total-cohort', label: 'All-Time — My Cohort', window: 'all', category: 'total', scope: 'cohort' },
+  { key: 'week-attendance', label: '🏅 Best Attendance — This Week', window: 'week', category: 'attendance', scope: 'all' },
+  { key: 'all-attendance', label: '🏅 Best Attendance — All-Time', window: 'all', category: 'attendance', scope: 'all' },
+  { key: 'week-poll', label: '🎯 Poll Champions — This Week', window: 'week', category: 'poll', scope: 'all' },
+  { key: 'all-poll', label: '🎯 Poll Champions — All-Time', window: 'all', category: 'poll', scope: 'all' },
+  { key: 'week-spa', label: '🧑‍🏫 Top SPA — This Week', window: 'week', category: 'spa', scope: 'all' },
+  { key: 'all-spa', label: '🧑‍🏫 Top SPA — All-Time', window: 'all', category: 'spa', scope: 'all' },
+  { key: 'week-query', label: '💬 Top Query Answerers — This Week', window: 'week', category: 'query', scope: 'all' },
+  { key: 'all-query', label: '💬 Top Query Answerers — All-Time', window: 'all', category: 'query', scope: 'all' },
 ];
 
 function LeaderboardPanel({ student }) {
@@ -1395,10 +1395,10 @@ function netFor(b) { return b.status === 'won' ? b.potentialWin - b.stake : -(b.
 // engine (stake debited → HIT wins it back multiplied / MISS loses a penalty); only
 // the target metric differs. ViBe is live; the other three land one by one.
 const COMMITMENT_TYPES = [
-  { key: 'vibe',    name: 'ViBe courses',        blurb: 'ViBe commitments are temporarily on hold — we’re reconnecting the ViBe course-completion feed. They’ll be back up soon.', ready: false },
-  { key: 'standup', name: 'Standups',            blurb: 'Standup commitments are paused — standups have moved to YouTube Live and the attendance module is being reworked. They’ll return once the new attendance tracking is ready.', ready: false },
-  { key: 'spa',     name: 'SPA — Matrix Mystics', blurb: 'Pledge to solve N of the 53 problems by a date.',                          ready: false },
-  { key: 'project', name: 'Projects',            blurb: 'Pledge to raise / merge N pull requests by a date.',                        ready: false }
+  { key: 'vibe', name: 'ViBe courses', blurb: 'ViBe commitments are temporarily on hold — we’re reconnecting the ViBe course-completion feed. They’ll be back up soon.', ready: false },
+  { key: 'standup', name: 'Standups', blurb: 'Standup commitments are paused — standups have moved to YouTube Live and the attendance module is being reworked. They’ll return once the new attendance tracking is ready.', ready: false },
+  { key: 'spa', name: 'SPA — Matrix Mystics', blurb: 'Pledge to solve N of the 53 problems by a date.', ready: false },
+  { key: 'project', name: 'Projects', blurb: 'Pledge to raise / merge N pull requests by a date.', ready: false }
 ];
 
 function Commitments({ student, initialPhase }) {
@@ -1462,12 +1462,18 @@ function VibeGoals({ student }) {
     const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const j = await r.json(); if (!r.ok) { setErr(j.error); return null; } setErr(null); return j;
   };
-  const place = async () => { const j = await post(`${API}/vibe/bet`,
-    { email, course: cur.key, goalPct: g, stake: s, multiplier: m, deadline: form.deadline }); if (j) setData(j); };
-  const saveEdit = async () => { const j = await post(`${API}/vibe/bet/${data.active._id}`,
-    { email, goalPct: g, stake: s, multiplier: m }, 'PUT'); if (j) { setEditing(false); setData(j); } };
-  const settle = async (result) => { const j = await post(`${API}/vibe/bet/${data.active._id}/settle`,
-    { email, result }); if (j) { setEditing(false); setData(j); } };
+  const place = async () => {
+    const j = await post(`${API}/vibe/bet`,
+      { email, course: cur.key, goalPct: g, stake: s, multiplier: m, deadline: form.deadline }); if (j) setData(j);
+  };
+  const saveEdit = async () => {
+    const j = await post(`${API}/vibe/bet/${data.active._id}`,
+      { email, goalPct: g, stake: s, multiplier: m }, 'PUT'); if (j) { setEditing(false); setData(j); }
+  };
+  const settle = async (result) => {
+    const j = await post(`${API}/vibe/bet/${data.active._id}/settle`,
+      { email, result }); if (j) { setEditing(false); setData(j); }
+  };
 
   const showForm = cur && (!data.active || editing);
 
@@ -1547,7 +1553,7 @@ function VibeGoals({ student }) {
               <div className="vg-actions">
                 {editing
                   ? <><button className="primary" disabled={!!problem} onClick={saveEdit}>Save changes</button>
-                      <button className="secondary" onClick={() => { setEditing(false); setErr(null); }}>Cancel</button></>
+                    <button className="secondary" onClick={() => { setEditing(false); setErr(null); }}>Cancel</button></>
                   : <button className="primary" disabled={!!problem} onClick={place}>Place commitment</button>}
                 <span className={problem ? 'vg-warn' : 'vg-ok'}>{problem || `✓ Covered — ${loss} SP reserved until it settles.`}</span>
               </div>
@@ -1715,7 +1721,7 @@ function AdminView({ admin, auth, onBack }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: auth.email, name: auth.email, page })
-    }).catch(() => {});
+    }).catch(() => { });
     doPing('admin-analytics');
     const id = setInterval(() => doPing('admin-live'), 30000);
     return () => clearInterval(id);
@@ -1765,7 +1771,7 @@ function AdminView({ admin, auth, onBack }) {
         <div><p className="eyebrow">Admin Dashboard</p><h1>Spurti Control Room</h1></div>
         <div className="score-card"><span>Yet to onboard</span><strong>{stats?.yetToOnboard ?? admin.yetToOnboard ?? 0}</strong><span className="divider">|</span><span>Active</span><strong>{stats?.activeStudents ?? admin.activeStudents ?? admin.students ?? 0}</strong><span className="divider">|</span><span>Excused</span><strong>{stats?.excusedStudents ?? admin.excusedStudents ?? 0}</strong><em>{stats?.transactions ?? admin.transactions ?? 0} txns</em></div>
       </header>
-      <Tabs tab={tab} setTab={setTab} tabs={[['leaderboard','Leaderboard'], ['attendance','Attendance'], ['live','Live'], ['analytics','Analytics'], ['achievements','Achievements'], ['students','Students']]} />
+      <Tabs tab={tab} setTab={setTab} tabs={[['leaderboard', 'Leaderboard'], ['attendance', 'Attendance'], ['live', 'Live'], ['analytics', 'Analytics'], ['achievements', 'Achievements'], ['students', 'Students']]} />
       {tab === 'leaderboard' && (
         <section className="panel">
           <div className="panel-head">
@@ -2133,7 +2139,7 @@ function AllStudentsPanel({ stats, onStudent, auth }) {
       {loading ? <p>Loading...</p> : list.length === 0 ? <p className="empty">No students in this category.</p> : (
         <table className="table">
           <thead><tr><th>Name</th><th>Email</th><th>SP</th><th>Start Date</th></tr></thead>
-          <tbody>{list.map(s => <tr key={s._id} onClick={() => onStudent(s._id)} style={{cursor:'pointer'}}><td>{s.name}</td><td>{s.email}</td><td>{s.totalSp}</td><td>{s.internshipStartDate ? new Date(s.internshipStartDate).toLocaleDateString() : '—'}</td></tr>)}</tbody>
+          <tbody>{list.map(s => <tr key={s._id} onClick={() => onStudent(s._id)} style={{ cursor: 'pointer' }}><td>{s.name}</td><td>{s.email}</td><td>{s.totalSp}</td><td>{s.internshipStartDate ? new Date(s.internshipStartDate).toLocaleDateString() : '—'}</td></tr>)}</tbody>
         </table>
       )}
     </section>
@@ -2167,7 +2173,7 @@ function GoalCardModal({ student, surveyBlocking }) {
     fetch(`${API}/e2/card-event`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ event, phase: pick?.phaseKey, ...extra })
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   useEffect(() => {
@@ -2191,7 +2197,7 @@ function GoalCardModal({ student, surveyBlocking }) {
         fetch(`${API}/e2/card-event`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ event: 'impression', phase: next.phaseKey })
-        }).catch(() => {});
+        }).catch(() => { });
       } catch { /* any failure -> no card today */ }
     })();
     return () => { active = false; };
