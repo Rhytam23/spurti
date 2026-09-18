@@ -37,7 +37,7 @@ Student
 Cards above the tabs
   Level / Trophy League / Legend status
   Announcements   programme notices with an explicit "Got it" read receipt
-  Goal card       shown only to students in an experiment arm during its window (E2)
+  Goal card       shown only to students carrying an arm on their record, during a set window
   Survey pop-up   up to three mandatory Google-Form surveys, env-gated, verified against the sheet
 
 Admin (x-admin-email / x-admin-token headers)
@@ -119,14 +119,14 @@ email up in `students`. There is no login page.
 |---|---|---|
 | 11:30, 17:30, 23:30, 05:30 | sakshi crontab | `sp-refresh.sh`: Spandan fetch → rubric APPLY → levels → attendance records → trajectory snapshot → leaderboards. Single-instance lock; each step's outcome lands in a step-health file the admin dashboard shows |
 | every 30 min | sakshi crontab | `snapshot-analytics.js` — one `AnalyticsSnapshot` for the admin Analytics tab |
-| every 10 min while a survey is open | sakshi crontab | `survey-sheet-sync.cjs` / `poll2-sheet-sync.cjs` — reconcile the completed flags against the real form responses |
+| every 10 min while a survey is open | sakshi crontab | survey reconciliation against the Google Form responses — a small script kept outside this repository |
 | weekly | sakshi crontab | `sp-runs-retention.sh` — thin the ledger backups that every APPLY writes under `sp-runs/` |
 | on a cron, see script header | sakshi side | `pipeline/certificate-freeze.cjs` — adds newly completed students to `certificate_finals`; existing rows are never touched |
 | when new data arrives | manual | `pipeline/vibe-fetch.cjs` (ViBe completion mirror), `pipeline/vtalk-attendance-build.cjs` (V-Talk attendance) |
-| every 6 h | samagama cron | `pipeline/cron-sakshi-zoom.sh` → `zoom-update.js` (Zoom into `zoom_data`, mirrored to `sakshi_spurti.zoom_*`) |
+| every 6 h | samagama cron | `pipeline/samagama/cron-sakshi-zoom.sh` → `zoom-update.js` (Zoom into `zoom_data`, mirrored to `sakshi_spurti.zoom_*`) |
 | every 6 h | Samagama repo | the `act_*` activity mirror the SPA, query, project, ViBe and quiz rules read |
-| every 2 h | samagama cron | `pipeline/sync-spurti-from-sakshi.js` — copies the ledger back so the Samagama dashboard's SP button agrees with Spurti |
-| nightly | samagama cron | `pipeline/sync-collaborator-mirrors.js` — roster mirror |
+| every 2 h | samagama cron | `pipeline/samagama/sync-spurti-from-sakshi.js` — copies the ledger back so the Samagama dashboard's SP button agrees with Spurti |
+| nightly | samagama cron | `pipeline/samagama/sync-collaborator-mirrors.js` — roster mirror |
 
 Feature flags are read once at process start, so **flipping one needs a restart, not a redeploy.**
 
@@ -144,9 +144,8 @@ server/
                        E2CardEvent, SessionEvent, ActMirrors (read-only views over act_*)
   services/            the logic worth reading: leaderboards, levels, achievements, journey, standup,
                        vibe, spa, trajectory, analyticsService, spLedger, sp
-  scripts/             rebuild, seed, buildLeaderboards, buildTrajectories, backfillWeeklyAchievements,
-                       and the legacy CSV ingestion (addStudents, syncStudents, ingestSession) that
-                       predates the pipeline
+  scripts/             buildLeaderboards.js and buildTrajectories.js (run by the refresh)
+  seed-demo-local.mjs, seed-announcements-demo.mjs   throwaway local demo data (npm run seed)
   migrations/          dated run-once scripts (run BEFORE deploying the code that needs them)
   data/cards/          generated achievement card PNGs — gitignored
 client/
@@ -154,35 +153,25 @@ client/
   src/shareCard.js     the share card, drawn to canvas in the student's own browser
   src/vledLogo.js      the logo as a data URI (a remote image would taint the canvas)
   vite.config.js       dev server on 5291, proxies /api and /spurti to 5290
+  vite.config.demo.js  same, for the demo seed
 pipeline/              the SP recompute chain — README.md inside
   sp-rubric-build-mirror.cjs   THE scorer. Reads only sakshi_spurti mirrors; APPLY=1 to write
   spandan-poll-fetch.cjs       Spandan Research API → spandan_polls (poll and hybrid attendance source)
   vibe-fetch.cjs               ViBe course completion → vibe_course_progress
   vtalk-attendance-build.cjs   V-Talk nights from the Zoom mirror → vtalk_attendance
   certificate-freeze.cjs       write-once certificate_finals
-  assign-arms-e2.mjs           one-shot experiment arm assignment (run on the server, never locally)
   sync-attendance-records.cjs / sync-poll-records.cjs   display collections rebuilt from the ledger
-  zoom-update.js, zoom-fetch-transcripts.js, zoom-ingest-all-transcripts.js,
-  sync-sakshi-zoom-mirror.js, sync-collaborator-mirrors.js, sync-spurti-from-sakshi.js
-                               the Samagama-side scripts, kept verbatim as deployed (absolute paths)
-  sp-rubric-build.js, sp-pipeline.sh, sp-pipeline.cron, cron-sakshi-zoom.sh
-                               the original live-Zoom scorer and its cron; scoring retired in favour
-                               of the mirror scorer, kept because production history depends on them
+  samagama/                    the Samagama-side scripts (Zoom ingest and mirror, roster mirror,
+                               ledger copy-back), kept verbatim as deployed there (absolute paths)
 sp-refresh.sh          the sakshi-side 6-hourly refresh (see "What runs when")
 sp-runs-retention.sh   backup retention for sp-runs/
 sync-levels.cjs        Levels / Trophy League / Legend / onboarding group — idempotent, derived only
 snapshot-analytics.js  admin analytics snapshot
-survey-sheet-sync.cjs, poll2-sheet-sync.cjs   survey completion reconciliation
 test/                  node:test suites for the pure scoring logic
-public/                the pre-React static admin page; superseded, still served
 CONTEXT.md             the deep reference: schema, the full SP rubric with its cutover dates, admin
                        endpoints, server paths, known incidents
 FAQ_SP.md              the SP rules as students read them (also rendered in the FAQ tab)
-HOW_TO_USE.md          the original local-setup and CSV-ingestion guide (legacy path)
-SURVEY_POPUP.md        how the mandatory survey pop-up and its Apps Script loop work
 PRODUCT.md             why this exists — the motivation-engine design thinking
-HANDOFF_*.md, VLED_SP_BUTTON_IMPLEMENTATION.md   notes written for the Samagama admins about the
-                       mirrors, the roster and the dashboard SP button
 ```
 
 ## Running it locally
@@ -193,7 +182,7 @@ HANDOFF_*.md, VLED_SP_BUTTON_IMPLEMENTATION.md   notes written for the Samagama 
 git clone https://github.com/vicharanashala/spurti.git
 cd spurti
 cp .env.example .env          # then edit MONGO_URI at least
-npm run setup                 # installs both halves, rebuilds derived data, builds the client
+npm run setup                 # installs both halves and builds the client
 npm start                     # serves the API and the built client on PORT (default 5290)
 ```
 
@@ -209,15 +198,17 @@ npm --prefix client run dev        # terminal 2 — UI on 5291 with hot reload
 
 **No student session locally.** With no Samagama running there is no `chatengine_token`. Keep
 `ALLOW_STUDENT_SEARCH=true` and look students up by email; that path is off in production on
-purpose. `npm run seed` gives you a small database to look at.
+purpose. `npm run seed` against a database named `*demo*` gives you a small database to look at,
+then point `MONGO_URI` in `.env` at it.
 
 **Useful scripts:**
 
 ```bash
-npm test                 # the whole test suite
-npm run rebuild          # rebuild derived collections (levels, boards, trajectories)
-npm run seed             # seed a local database
-node sync-levels.cjs     # recompute levels/leagues after any SP change (idempotent)
+npm test                     # the whole test suite
+MONGO_URI=mongodb://127.0.0.1:27017/spurti_demo npm run seed   # throwaway demo db; the seed
+                             # refuses any database whose name lacks "demo" (it wipes collections)
+MONGO_URI=mongodb://127.0.0.1:27017/spurti_demo npm run seed-announcements   # demo notices on top
+node sync-levels.cjs         # recompute levels/leagues after any SP change (idempotent)
 node server/scripts/buildLeaderboards.js
 node server/scripts/buildTrajectories.js
 ```
@@ -253,8 +244,8 @@ Variables the web app and the refresh read:
 | `PUBLIC_BASE_URL` | inferred | Absolute origin for `og:` tags on verify pages. |
 | `CARD_DIR` | `server/data/cards` | Where generated card PNGs are written. |
 | `VERIFY_VIEW_LOG` | on | `0` stops logging verify-page views. |
-| `SURVEY_*`, `POLL2_*`, `POLL3_*` | off | One block per mandatory survey: `_ENABLED`, `_FORM_URL`, `_EMAIL_ENTRY`, `_ENFORCEMENT` (hard/soft), `_DEADLINE`, `_WEBHOOK_SECRET`, `_RESPONSES_URL`, `_RESPONSES_SECRET`. See SURVEY_POPUP.md. |
-| `E2_START`, `E2_DAYS` | unset, 7 | The goal-card experiment window. Unset = card off everywhere. Arms are written once by `pipeline/assign-arms-e2.mjs`. |
+| `SURVEY_*`, `POLL2_*`, `POLL3_*` | off | One block per mandatory survey: `_ENABLED`, `_FORM_URL`, `_EMAIL_ENTRY`, `_ENFORCEMENT` (hard/soft), `_DEADLINE`, `_WEBHOOK_SECRET`, `_RESPONSES_URL`, `_RESPONSES_SECRET`. |
+| `E2_START`, `E2_DAYS` | unset, 7 | The goal-card window. Unset = card off everywhere. Which students carry an arm is decided outside this repository. |
 | `DEMO` | unset | Demo seed mode for the seed scripts. |
 | `STEP_HEALTH_FILE` | `sp-runs/step-health.tsv` | Where `sp-refresh.sh` records each step's outcome; the admin dashboard reads it. |
 | `ALERT_WEBHOOK_URL`, `ALERT_WEBHOOK_SECRET`, `ALERT_AFTER` | unset | Where the refresh posts an alert after N consecutive failures of a step. Unset = log only. |
@@ -308,6 +299,8 @@ actually deployed before assuming `main` is running. Known at the time of writin
   window and a Daily Quiz Stars board. Until that is ported, the rubric here does not score quizzes
   and the leaderboard service does not know the category.
 - The third survey (`POLL3_*`) was wired on the server first and is in `server.js` here.
+- Survey reconciliation and experiment tooling (arm assignment, analysis) are deliberately kept
+  outside this repository, in the lab's private research folder.
 
 ## Contributing
 

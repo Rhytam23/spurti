@@ -6,9 +6,9 @@ scoring** — the `+5/-5` logic that used to live in `server/scripts/` is retire
 
 > **Which scorer is live (since 28 Jun 2026):** `sp-rubric-build-mirror.cjs`, run
 > from the sakshi-side checkout by `../sp-refresh.sh` four times a day. It reads
-> only the `sakshi_spurti` mirrors. The original `sp-rubric-build.js` (live Zoom
-> API, samagama side) and `sp-pipeline.sh` are kept for history and are no longer
-> the scorer. The full current rubric — evening window, Spandan polls, hybrid
+> only the `sakshi_spurti` mirrors. The original live-Zoom scorer
+> (`sp-rubric-build.js`, `sp-pipeline.sh`) was removed from the repository on
+> 18 Sep 2026; it is in git history if the May–June scoring ever has to be traced. The full current rubric — evening window, Spandan polls, hybrid
 > attendance, SPA, query, project, quiz — is documented in `../CONTEXT.md`;
 > the rubric summary below describes parts A and B only.
 
@@ -43,7 +43,7 @@ Zoom  ──zoom-update.js──►  zoom_data.{meetings,attendance,polls,summar
                   Spurti web app (../server) reads sakshi_spurti  ──►  https://samagama.in/spurti/
 ```
 
-## Scoring rubric (implemented in `sp-rubric-build.js`)
+## Scoring rubric, parts A and B (implemented in `sp-rubric-build-mirror.cjs`)
 
 - **Base 100**, roster-driven: every *started intern* gets +100 on their
   official start date, even if they never attend. "Started" = start date has
@@ -81,9 +81,8 @@ re-inserts the full ledger each run, so re-running never double-counts.
 | `vibe-fetch.cjs` | ViBe course completion → `vibe_course_progress`; raw responses archived under `data/vibe-snapshots/`. The endpoint is unreliable; pull whenever it answers. |
 | `vtalk-attendance-build.cjs` | V-Talk nights from the Zoom mirror → `vtalk_attendance`, scored by the rubric's V-Talk pass. Re-run when new V-Talk data arrives. |
 | `certificate-freeze.cjs` | Write-once `certificate_finals` rows for students with a `completedAllAt` date. Re-running only adds newly completed students. |
-| `assign-arms-e2.mjs` | One-shot E2 experiment arm assignment; writes `e2Arm` onto student docs and saves the CSV server-side. Run once on the server, before setting `E2_START`. |
 
-**Samagama side** (run from `/var/samagama/server` as `samagama`, kept here verbatim with their absolute paths):
+**Samagama side** (`samagama/`, run from `/var/samagama/server` as `samagama`, kept here verbatim with their absolute paths):
 
 | File | Role |
 |------|------|
@@ -94,8 +93,6 @@ re-inserts the full ledger each run, so re-running never double-counts.
 | `sync-spurti-from-sakshi.js` | Mirror `sakshi_spurti.sptransactions` → `chatengine.spledgers` + `User.spPoints`, so the Samagama dashboard's SP button agrees with Spurti. |
 | `zoom-fetch-transcripts.js` | Zoom AI Companion summaries → `zoom_data.summaries`. |
 | `zoom-ingest-all-transcripts.js` | Zoom VTT transcripts → `zoom_data.transcripts`. |
-| `models/User.js` | Mongoose model used by `sync-spurti-from-sakshi.js`. |
-| `sp-rubric-build.js`, `sp-pipeline.sh`, `sp-pipeline.cron` | The original live-Zoom scorer, its 6-stage orchestrator and cron. **Retired as the scorer**; kept because production history was produced by them. |
 
 The `act_*` activity mirrors the SPA, query, project, ViBe and quiz rules read
 (`act_spa_endorsements`, `act_query_reviews`, `act_pr_reviews`, `act_pull_requests`,
@@ -118,11 +115,10 @@ The `act_*` activity mirrors the SPA, query, project, ViBe and quiz rules read
 
 | When (UTC) | When (IST) | Job |
 |------------|-----------|-----|
-| `30 1,7,13,19 * * *` | 07:00/13:00/19:00/01:00 | `cron-sakshi-zoom.sh` — `#zoomupdate` every 6h |
+| `30 1,7,13,19 * * *` | 07:00/13:00/19:00/01:00 | `samagama/cron-sakshi-zoom.sh` — `#zoomupdate` every 6h |
 | `30 */2 * * *` | every even hour | `sync-spurti-from-sakshi.js` — SP → chatengine |
 | `30 7 * * *` | 13:00 | `zoom-fetch-transcripts.js` + `zoom-ingest-all-transcripts.js --days 2` |
 | `30 18 * * *` (+jitter) | ~00:00–01:00 | `sync-collaborator-mirrors.js` — roster mirror |
-| `45 5 * * *`, `15 21 * * *` | 11:15, 02:45 | `sp-pipeline.sh` / `sp-rubric-build.js` — the retired scorer's slots; scoring now happens in `sp-refresh.sh` |
 
 ## Manual run (catch-up)
 
