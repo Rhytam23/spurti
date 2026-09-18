@@ -4,6 +4,14 @@ The data pipeline that computes Spurti Points and feeds the Spurti web app
 (`../server`, `../client`). These scripts are the **source of truth for SP
 scoring** — the `+5/-5` logic that used to live in `server/scripts/` is retired.
 
+> **Which scorer is live (since 28 Jun 2026):** `sp-rubric-build-mirror.cjs`, run
+> from the sakshi-side checkout by `../sp-refresh.sh` four times a day. It reads
+> only the `sakshi_spurti` mirrors. The original `sp-rubric-build.js` (live Zoom
+> API, samagama side) and `sp-pipeline.sh` are kept for history and are no longer
+> the scorer. The full current rubric — evening window, Spandan polls, hybrid
+> attendance, SPA, query, project, quiz — is documented in `../CONTEXT.md`;
+> the rubric summary below describes parts A and B only.
+
 > **Deployment note.** The live copy runs from `/var/samagama/server/` as the
 > `samagama` OS user, driven by cron (see below). The files here are a
 > version-controlled mirror of that deployment. They are kept **verbatim**,
@@ -62,32 +70,59 @@ re-inserts the full ledger each run, so re-running never double-counts.
 
 ## Files
 
+**Sakshi side** (run from `/home/sakshi/spurti`, read `../.env`):
+
 | File | Role |
 |------|------|
-| `sp-pipeline.sh` | Master daily orchestrator (fail-fast, 6 stages). |
-| `sp-pipeline.cron` | Cron definitions installed at `/etc/cron.d/sp-pipeline`. |
-| `cron-sakshi-zoom.sh` | Every-6h `#zoomupdate` wrapper (`/etc/cron.d/sakshi-zoom`). |
+| `sp-rubric-build-mirror.cjs` | **The scorer.** Base 100 + attendance + poll + SPA + query + project (+ quiz on the server) from the `sakshi_spurti` mirrors. Dry run by default; `APPLY=1` backs up then wipes and rebuilds `sptransactions`. `manual`/`peer_faq` rows are preserved. |
+| `spandan-poll-fetch.cjs` | Spandan Research Session Export API → `spandan_polls`. Source for poll SP and for hybrid attendance from 16 Jul / 29 Jul. Needs `SPANDAN_RESEARCH_KEY`. Additive only. |
+| `sync-attendance-records.cjs` | Rebuild `attendancerecords` from `sptransactions` (feeds the Session Health widget and the 3,600-minute Journey goal). |
+| `sync-poll-records.cjs` | Rebuild `pollrecords` from `sptransactions`. Rewritten 14 Aug 2026. |
+| `vibe-fetch.cjs` | ViBe course completion → `vibe_course_progress`; raw responses archived under `data/vibe-snapshots/`. The endpoint is unreliable; pull whenever it answers. |
+| `vtalk-attendance-build.cjs` | V-Talk nights from the Zoom mirror → `vtalk_attendance`, scored by the rubric's V-Talk pass. Re-run when new V-Talk data arrives. |
+| `certificate-freeze.cjs` | Write-once `certificate_finals` rows for students with a `completedAllAt` date. Re-running only adds newly completed students. |
+| `assign-arms-e2.mjs` | One-shot E2 experiment arm assignment; writes `e2Arm` onto student docs and saves the CSV server-side. Run once on the server, before setting `E2_START`. |
+
+**Samagama side** (run from `/var/samagama/server` as `samagama`, kept here verbatim with their absolute paths):
+
+| File | Role |
+|------|------|
 | `zoom-update.js` | `#zoomupdate`: fetch Zoom into `zoom_data`, mirror to `sakshi_spurti.zoom_*`, chain transcript ingest. |
-| `sp-rubric-build.js` | **The scorer.** A+B+base100 bands → `sakshi_spurti`. `APPLY=1` to write. |
-| `sync-spurti-from-sakshi.js` | Mirror `sakshi_spurti.sptransactions` → `chatengine.spledgers` + `User.spPoints`. |
-| `sync-attendance-records.js` | Rebuild `sakshi_spurti.attendancerecords` from `sptransactions`. |
-| `sync-poll-records.cjs` | Rebuild `sakshi_spurti.pollrecords` from `sptransactions`. Runs from **Sakshi's** `sp-refresh.sh`, not the samagama pipeline — see below. |
+| `cron-sakshi-zoom.sh` | Every-6h `#zoomupdate` wrapper (`/etc/cron.d/sakshi-zoom`). |
+| `sync-sakshi-zoom-mirror.js` | `zoom_data.*` → `sakshi_spurti.zoom_*` (Sakshi has RW only on her DB). |
+| `sync-collaborator-mirrors.js` | Nightly roster mirror of `chatengine.users` → `{rohit_spandan,sakshi_spurti,aditya_platform}.candidates`. |
+| `sync-spurti-from-sakshi.js` | Mirror `sakshi_spurti.sptransactions` → `chatengine.spledgers` + `User.spPoints`, so the Samagama dashboard's SP button agrees with Spurti. |
 | `zoom-fetch-transcripts.js` | Zoom AI Companion summaries → `zoom_data.summaries`. |
 | `zoom-ingest-all-transcripts.js` | Zoom VTT transcripts → `zoom_data.transcripts`. |
-| `sync-sakshi-zoom-mirror.js` | `zoom_data.*` → `sakshi_spurti.zoom_*` (Sakshi has RW only on her DB). |
-| `sync-collaborator-mirrors.js` | Nightly roster mirror of `chatengine.users` → `{rohit_spandan,sakshi_spurti,aditya_platform}.candidates`. This is the roster sync. |
 | `models/User.js` | Mongoose model used by `sync-spurti-from-sakshi.js`. |
+| `sp-rubric-build.js`, `sp-pipeline.sh`, `sp-pipeline.cron` | The original live-Zoom scorer, its 6-stage orchestrator and cron. **Retired as the scorer**; kept because production history was produced by them. |
 
-## Schedule (cron, UTC)
+The `act_*` activity mirrors the SPA, query, project, ViBe and quiz rules read
+(`act_spa_endorsements`, `act_query_reviews`, `act_pr_reviews`, `act_pull_requests`,
+`act_vibe_progress`, `act_faq_quiz_attempts`) are written by a 6-hourly cron in the
+**Samagama** repository, not by anything here.
+
+## Schedule
+
+**Sakshi side** (`sakshi` crontab on samagama.in):
+
+| When (IST) | Job |
+|-----------|-----|
+| 11:30, 17:30, 23:30, 05:30 | `../sp-refresh.sh` — Spandan fetch → `sp-rubric-build-mirror.cjs APPLY=1` → `sync-levels.cjs` → `sync-attendance-records.cjs` → `buildTrajectories.js` → `buildLeaderboards.js`. Single-instance lock; step outcomes in `STEP_HEALTH_FILE`; alert webhook after repeated failures. |
+| every 30 min | `../snapshot-analytics.js` |
+| every 10 min while a survey is open | `../survey-sheet-sync.cjs`, `../poll2-sheet-sync.cjs` |
+| weekly | `../sp-runs-retention.sh` |
+| on a cron (see script header) | `certificate-freeze.cjs` |
+
+**Samagama side** (`/etc/cron.d`, UTC):
 
 | When (UTC) | When (IST) | Job |
 |------------|-----------|-----|
-| `45 5 * * *` | 11:15 | `sp-pipeline.sh` — same-day scoring of the morning session |
-| `15 21 * * *` | 02:45 | `sp-rubric-build.js APPLY=1` — nightly full rebuild |
-| `30 1,7,13,19 * * *` | 19:00/01:00/07:00/13:00 | `cron-sakshi-zoom.sh` — `#zoomupdate` every 6h |
-| `30 */2 * * *` | every even hr | `sync-spurti-from-sakshi.js` — SP → chatengine |
+| `30 1,7,13,19 * * *` | 07:00/13:00/19:00/01:00 | `cron-sakshi-zoom.sh` — `#zoomupdate` every 6h |
+| `30 */2 * * *` | every even hour | `sync-spurti-from-sakshi.js` — SP → chatengine |
 | `30 7 * * *` | 13:00 | `zoom-fetch-transcripts.js` + `zoom-ingest-all-transcripts.js --days 2` |
 | `30 18 * * *` (+jitter) | ~00:00–01:00 | `sync-collaborator-mirrors.js` — roster mirror |
+| `45 5 * * *`, `15 21 * * *` | 11:15, 02:45 | `sp-pipeline.sh` / `sp-rubric-build.js` — the retired scorer's slots; scoring now happens in `sp-refresh.sh` |
 
 ## Manual run (catch-up)
 
@@ -100,6 +135,8 @@ node sp-rubric-build.js                 # dry preview
 APPLY=1 OUT_DIR=./sp-runs node sp-rubric-build.js
 # push to the app + records
 node sync-spurti-from-sakshi.js
-# attendance + poll records are rebuilt by Sakshi's sp-refresh.sh:
-#   cd ~/spurti && node pipeline/sync-attendance-records.cjs && node pipeline/sync-poll-records.cjs
+# the live scorer (sakshi side): preview, then apply via the refresh
+cd ~/spurti
+node pipeline/sp-rubric-build-mirror.cjs                 # dry run, writes ledger CSV only
+./sp-refresh.sh                                          # fetch -> APPLY -> levels -> records -> boards
 ```
