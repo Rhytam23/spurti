@@ -148,10 +148,12 @@ describe('weekKey', () => {
 });
 
 describe('AWARD_EXCLUDED_BOARDS', () => {
-  test('spa mints no cards while its scoring caps out', () => {
+  test('spa and quiz mint no cards', () => {
     // The SPA scheme caps at 490 SP and over a hundred students sit exactly
     // there, so "top of Peer Learning" is a permanent mass tie decided by who
-    // reached the ceiling first. Removing 'spa' here turns the cards back on.
-    assert.deepEqual(AWARD_EXCLUDED_BOARDS, ['spa']);
+    // reached the ceiling first. Quiz boards (added 15 Sep 2026) have no card
+    // design yet, so they display without minting. Removing an entry here is
+    // all it takes to turn that board's cards on.
+    assert.deepEqual(AWARD_EXCLUDED_BOARDS, ['spa', 'quiz']);
   });
 });

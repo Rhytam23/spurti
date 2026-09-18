@@ -515,8 +515,8 @@ api.get('/leaderboard', async (req, res) => {
 // Returns the top 50 + the requesting student's own rank/SP (even if outside it).
 api.get('/leaderboard/board', async (req, res) => {
   const student = await vibeStudent(req);
-  const window = ['week', 'all'].includes(req.query.window) ? req.query.window : 'week';
-  const category = ['total', 'attendance', 'poll', 'spa', 'query'].includes(req.query.category) ? req.query.category : 'total';
+  const window = ['week', 'all', 'day'].includes(req.query.window) ? req.query.window : 'week';
+  const category = ['total', 'attendance', 'poll', 'spa', 'query', 'quiz'].includes(req.query.category) ? req.query.category : 'total';
   // Cohort scope only exists for the 'total' board; category boards are global.
   const wantCohort = req.query.scope === 'cohort' && category === 'total' && student?.leaderboardGroup;
   const boardKey = wantCohort ? `${window}:total:group:${student.leaderboardGroup}` : `${window}:${category}:all`;

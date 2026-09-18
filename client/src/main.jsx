@@ -802,6 +802,9 @@ const LB_PRESETS = [
   { key: 'all-spa',           label: '🧑‍🏫 Top SPA — All-Time',            window: 'all',  category: 'spa',        scope: 'all' },
   { key: 'week-query',        label: '💬 Top Query Answerers — This Week', window: 'week', category: 'query',      scope: 'all' },
   { key: 'all-query',         label: '💬 Top Query Answerers — All-Time',  window: 'all',  category: 'query',      scope: 'all' },
+  { key: 'day-quiz',          label: '🧠 Daily Quiz — Today',              window: 'day',  category: 'quiz',       scope: 'all' },
+  { key: 'week-quiz',         label: '🧠 Daily Quiz — This Week',          window: 'week', category: 'quiz',       scope: 'all' },
+  { key: 'all-quiz',          label: '🧠 Daily Quiz — All-Time',           window: 'all',  category: 'quiz',       scope: 'all' },
 ];
 
 function LeaderboardPanel({ student }) {
