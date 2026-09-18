@@ -166,6 +166,15 @@ run_step "sync-levels" fatal "SP applied but derived level fields may be stale" 
 run_step "sync-attendance-records" nonfatal "attendance minutes/3600 goal may be stale" \
   "$NODE" pipeline/sync-attendance-records.cjs || true
 
+# Step 2c: same for poll counts. This step did NOT exist until 2026-08-14 —
+# sync-poll-records was left behind by the 2026-06-28 move off the samagama
+# side (absolute /var/samagama paths it can no longer read, plus a .js
+# extension in a "type": "module" repo), so pollrecords sat frozen at 27 Jun
+# for seven weeks while poll SP kept scoring correctly. Non-fatal, same as
+# attendance: SP is unaffected if this fails.
+run_step "sync-poll-records" nonfatal "poll counts may be stale" \
+  "$NODE" pipeline/sync-poll-records.cjs || true
+
 # Step 3: rebuild the SP-trajectory snapshot (cohort/group reference lines for the
 # student trajectory modal). Non-fatal — the student's own line is always live.
 run_step "trajectory snapshot" nonfatal "cohort lines may be stale" \
@@ -179,3 +188,6 @@ run_step "leaderboards" nonfatal "boards may be stale" \
 OUT_DIR="$OUT_DIR" WEEKS=12 DAILY_DAYS=2 "$REPO/sp-runs-retention.sh" >> "$LOG" 2>&1 || true
 
 log "=== sp-refresh done ==="
+
+# ViBe completion mirror (endpoint flaps; skip-on-fail, never blocks scoring)
+node pipeline/vibe-fetch.cjs || true
