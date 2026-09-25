@@ -1033,7 +1033,7 @@ function LeaderboardPanel({ student }) {
   // on nothing is "no results yet", not three gold medals.
   const scored = rows.filter(r => (Number(r.sp) || 0) > 0);
   const top = scored.slice(0, 3);
-  const rest = rows.filter(r => !top.includes(r));
+  const rest = scored.filter(r => !top.includes(r));   // zero-point rows are not listed; the "You" strip below still shows your own place
   const max = Math.max(1, ...rows.map(r => Number(r.sp) || 0));
   // Visual order of the podium: 2nd, 1st, 3rd (row order in, so ties keep their order).
   const podium = top.length === 3 ? [top[1], top[0], top[2]] : top;
