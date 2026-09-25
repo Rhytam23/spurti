@@ -39,6 +39,7 @@ const ICONS = {
   calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4" /><path d="M8 2v4" /><path d="M3 10h18" /></>,
   clock: <><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></>,
   bolt: <path d="M13 2 3 14h9l-1 8 10-12h-9z" />,
+  lock: <><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
   users: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
   shield: <><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></>,
   target: <><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></>,
@@ -83,7 +84,7 @@ export function useCountUp(target, { from = 0, duration = 1000 } = {}) {
 }
 
 /* ── Progress ring ─────────────────────────────────────────────────────────── */
-export function Ring({ value = 0, size = 96, stroke = 10, from = '#14b8a6', to = '#6366f1', children, label }) {
+export function Ring({ value = 0, size = 96, stroke = 10, from = '#2c4a8a', to = '#3b5b9d', children, label }) {
   const uid = useId().replace(/:/g, '');
   const reduce = usePrefersReducedMotion();
   const pct = Math.max(0, Math.min(100, Number(value) || 0));
@@ -129,7 +130,7 @@ function smoothPath(pts, top, bottom) {
 }
 
 // points: [{ v, label, sub, delta }]
-export function AreaChart({ points, height = 150, from = '#14b8a6', to = '#6366f1', unit = 'SP' }) {
+export function AreaChart({ points, height = 150, from = '#2c4a8a', to = '#3b5b9d', unit = 'SP' }) {
   const uid = useId().replace(/:/g, '');
   const [hover, setHover] = useState(null);
   const n = points.length;
@@ -198,7 +199,7 @@ export function Avatar({ name, size = 40 }) {
   return (
     <span className="ui-avatar" aria-hidden="true"
       style={{ width: size, height: size, fontSize: Math.round(size * 0.38),
-        background: `linear-gradient(135deg, hsl(${h} 82% 62%), hsl(${(h + 48) % 360} 76% 50%))` }}>
+        background: `linear-gradient(135deg, hsl(${h} 38% 46%), hsl(${(h + 24) % 360} 42% 34%))` }}>
       {initials(name)}
     </span>
   );
@@ -288,7 +289,7 @@ function confettiLayer() {
   return layer;
 }
 
-export const CONFETTI_COLORS = ['#14b8a6', '#6366f1', '#8b5cf6', '#f59e0b', '#ec4899', '#10b981', '#3b82f6'];
+export const CONFETTI_COLORS = ['#2c4a8a', '#3b5b9d', '#c98a2b', '#e9b44c', '#8fa3c7', '#d6604d', '#5b8f7b'];
 
 export function burst({ x, y, colors = CONFETTI_COLORS, count = 80, spread = 70, power = 1 } = {}) {
   if (typeof document === 'undefined' || reducedMotion()) return;
@@ -402,6 +403,13 @@ export function UiTabs({ tab, setTab, tabs, icons = {}, pinned = false, identity
     if (el) setInd({ x: el.offsetLeft, w: el.offsetWidth });
   }, []);
   useLayoutEffect(measure, [tab, tabs.length, measure]);
+  // Pinning changes the strip's padding and slides the identity in, so tab positions move for ~0.4s: keep re-measuring.
+  useEffect(() => {
+    let raf; const end = performance.now() + 600;
+    const tick = () => { measure(); if (performance.now() < end) raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [pinned, measure]);
   useEffect(() => {
     window.addEventListener('resize', measure);
     document.fonts?.ready?.then(measure);

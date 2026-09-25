@@ -49,33 +49,6 @@ function AppShell() {
     return () => clearInterval(id);
   }, [profile]);
 
-  // SP is recomputed by the pipeline a few times a day. When the tab comes back into
-  // view (at most every 5 minutes) re-read /api/me so a fresh award shows up — and
-  // gets celebrated — without a reload. Only ever swaps in the SAME student's record.
-  const profileRef = useRef(null);
-  profileRef.current = profile;
-  const lastRefresh = useRef(Date.now());
-  useEffect(() => {
-    const refresh = async () => {
-      const cur = profileRef.current;
-      if (!cur?.student || document.visibilityState === 'hidden') return;
-      if (Date.now() - lastRefresh.current < 300000) return;
-      lastRefresh.current = Date.now();
-      try {
-        const r = await fetch(`${API}/me`);
-        if (!r.ok) return;
-        const d = await r.json();
-        if (d.authenticated && d.profile?.student?.email === cur.student.email) setProfile(d.profile);
-      } catch { /* keep what is on screen */ }
-    };
-    document.addEventListener('visibilitychange', refresh);
-    window.addEventListener('focus', refresh);
-    return () => {
-      document.removeEventListener('visibilitychange', refresh);
-      window.removeEventListener('focus', refresh);
-    };
-  }, []);
-
   useEffect(() => {
     let active = true;
     async function bootstrap() {
@@ -435,7 +408,9 @@ function Hero({ heroRef, profile, onBack, streak, cel, dismiss, anchorRef }) {
         {onBack
           ? <button type="button" className="ui-ghost" onClick={onBack}><Icon name="arrowLeft" size={16} /> Back</button>
           : <span className="ui-eyebrow"><i className="ui-brand-dot" /> Spurti · Student bank</span>}
-        {student.leaderboardGroupLabel && <span className="ui-eyebrow soft">Cohort {student.leaderboardGroupLabel}</span>}
+        <span className={`ui-group ${student.leaderboardGroupLabel ? '' : 'none'}`} title="Your biweekly onboarding cohort">
+          <Icon name="users" size={15} /> Onboarding group <b>{student.leaderboardGroupLabel || 'not assigned yet'}</b>
+        </span>
       </div>
       <div className="ui-hero-grid">
         <div className="ui-hero-id">
@@ -446,6 +421,7 @@ function Hero({ heroRef, profile, onBack, streak, cel, dismiss, anchorRef }) {
             <Chip icon="trophy" title="Your place on the overall board">Rank #{student.rank} of {student.cohortSize}</Chip>
             {streak?.current > 0 && <Chip tone="flame" icon="flame" title="Consecutive standups attended">{streak.current} session streak</Chip>}
             {student.legendBadgeUnlocked && <Chip tone="gold" icon="medal" title="Reached 1500 SP at least once">Legend badge</Chip>}
+            {!student.legendBadgeUnlocked && <Chip icon="lock" title="Reach 1500 SP once to unlock">Legend badge locked</Chip>}
           </div>
         </div>
         <div className="ui-hero-sp">
@@ -454,7 +430,7 @@ function Hero({ heroRef, profile, onBack, streak, cel, dismiss, anchorRef }) {
           <span className="ui-sub">{next ? `${next.toGo} SP to ${next.name}` : 'You are in the top league'}</span>
         </div>
         <div className="ui-hero-level">
-          <Ring value={lv.pct} size={116} stroke={11} from="#5eead4" to="#fde68a" label={`Level ${lv.level}, ${lv.pct} of 100 SP to level ${lv.nextLevel}`}>
+          <Ring value={lv.pct} size={116} stroke={11} from="#e9b44c" to="#fde9a8" label={`Level ${lv.level}, ${lv.pct} of 100 SP to level ${lv.nextLevel}`}>
             <span className="ui-ring-cap">Level</span>
             <strong className="ui-ring-num">{lv.level}</strong>
           </Ring>
@@ -1099,7 +1075,7 @@ function TrajectoryModal({ student, onClose }) {
   const series = data ? [
     { key: 'you', label: 'You', color: 'var(--primary)', points: data.you, width: 3, dots: true },
     { key: 'cohort', label: 'Cohort average', color: '#94a3b8', points: data.cohort, width: 2, dash: '5 4' },
-    { key: 'group', label: data.groupLabel ? `Your group (${data.groupLabel})` : 'Your group', color: '#8b5cf6', points: data.group, width: 2 }
+    { key: 'group', label: data.groupLabel ? `Your group (${data.groupLabel})` : 'Your group', color: '#6f63b8', points: data.group, width: 2 }
   ].filter(s => s.points && s.points.length) : [];
 
   const weeks = data?.weeks || 10;
@@ -1496,10 +1472,10 @@ const toInput = d => d ? new Date(d).toISOString().slice(0, 10) : '';
 const NEXT_NUDGE = { standup: 'Next up: push your ViBe courses.', vibe: 'Next up: keep your SPA pace.', spa: 'Next up: ship your first project PR.', project: 'On track across the board — keep it up!' };
 
 const TRACKS = {
-  standup: { color: '#3b82f6', icon: 'users', name: 'Standups' },
-  vibe: { color: '#8b5cf6', icon: 'bolt', name: 'ViBe' },
+  standup: { color: '#3b6fc4', icon: 'users', name: 'Standups' },
+  vibe: { color: '#6f63b8', icon: 'bolt', name: 'ViBe' },
   spa: { color: '#f59e0b', icon: 'book', name: 'SPA' },
-  project: { color: '#10b981', icon: 'target', name: 'Projects' }
+  project: { color: '#3f8f74', icon: 'target', name: 'Projects' }
 };
 
 // Goal block that lives ON a phase card: set a target date (none/missed) → pace bar
