@@ -39,6 +39,7 @@ const ICONS = {
   calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4" /><path d="M8 2v4" /><path d="M3 10h18" /></>,
   clock: <><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></>,
   bolt: <path d="M13 2 3 14h9l-1 8 10-12h-9z" />,
+  chat: <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
   lock: <><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
   users: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
   shield: <><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></>,
@@ -441,4 +442,54 @@ export function UiTabs({ tab, setTab, tabs, icons = {}, pinned = false, identity
       {extra}
     </nav>
   );
+}
+
+
+/* ── Pill group: a radio group with a sliding highlight (leaderboard boards / windows) ── */
+export function PillGroup({ items, value, onChange, label, size = 'md' }) {
+  const ref = useRef(null);
+  const [ind, setInd] = useState({ x: 0, w: 0 });
+  const measure = useCallback(() => {
+    const el = ref.current?.querySelector('[aria-checked="true"]');
+    if (el) setInd({ x: el.offsetLeft, w: el.offsetWidth });
+  }, []);
+  useLayoutEffect(measure, [value, items.length, measure]);
+  useEffect(() => {
+    window.addEventListener('resize', measure);
+    document.fonts?.ready?.then(measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+  // keep the chosen pill in view inside a scrolling strip (scrolls the strip only, never the page)
+  useEffect(() => {
+    const list = ref.current; const el = list?.querySelector('[aria-checked="true"]');
+    if (!list || !el || list.scrollWidth <= list.clientWidth) return;
+    list.scrollTo({ left: Math.max(0, el.offsetLeft - (list.clientWidth - el.offsetWidth) / 2), behavior: reducedMotion() ? 'auto' : 'smooth' });
+  }, [value]);
+  const move = (e) => {
+    const i = items.findIndex(it => it.key === value);
+    const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const next = items[(i + step + items.length) % items.length];
+    onChange(next.key);
+    requestAnimationFrame(() => ref.current?.querySelector('[aria-checked="true"]')?.focus());
+  };
+  return (
+    <div className={`ui-sw ${size}`} role="radiogroup" aria-label={label} ref={ref} onKeyDown={move}>
+      <span className="ui-sw-ind" style={{ width: ind.w, transform: `translateX(${ind.x}px)` }} aria-hidden="true" />
+      {items.map(it => (
+        <button key={it.key} type="button" role="radio" aria-checked={value === it.key} tabIndex={value === it.key ? 0 : -1}
+          className={`ui-sw-opt ${value === it.key ? 'on' : ''}`} onClick={() => onChange(it.key)}>
+          {it.icon && <Icon name={it.icon} size={size === 'sm' ? 14 : 16} />}
+          <span>{it.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// A number that counts up to its value when it changes (leaderboard SP).
+export function CountNum({ value }) {
+  const v = useCountUp(Number(value) || 0, { duration: 900 });
+  return <>{v}</>;
 }

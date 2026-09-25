@@ -674,3 +674,35 @@
 @media (max-width: 520px) { .ui-hero-bar { flex-wrap: wrap; gap: 8px; } }
 .ui-group { white-space: nowrap; max-width: 100%; }
 @media (max-width: 520px) { .ui-group { font-size: 11.5px; padding: 6px 11px; gap: 6px; } }
+
+
+/* ── Leaderboard: animated board + window pickers ─────────────────────────────── */
+.ui-lb-controls { display: grid; gap: 10px; margin: 4px 0 14px; }
+.ui-sw { position: relative; display: flex; gap: 2px; padding: 4px; width: fit-content; max-width: 100%; overflow-x: auto; scrollbar-width: none; border-radius: 999px; border: 1px solid var(--ui-line); background: var(--ui-tint); }
+.ui-sw::-webkit-scrollbar { display: none; }
+.ui-sw-ind { position: absolute; top: 4px; bottom: 4px; left: 0; border-radius: 999px; background: var(--ui-grad); box-shadow: 0 8px 18px -8px rgba(30, 58, 110, 0.55); transition: transform 0.4s cubic-bezier(0.3, 0.9, 0.3, 1), width 0.4s cubic-bezier(0.3, 0.9, 0.3, 1); }
+.ui-sw-opt { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border: 0; border-radius: 999px; background: none; color: var(--ui-ink-2); font: inherit; font-weight: 700; font-size: 13.5px; white-space: nowrap; cursor: pointer; transition: color 0.25s ease; }
+.ui-sw-opt:hover { color: var(--ui-ink); }
+.ui-sw-opt.on { color: #fff; }
+.ui-sw-opt .ui-icon { transition: transform 0.35s cubic-bezier(0.3, 1.6, 0.4, 1); }
+.ui-sw-opt.on .ui-icon { transform: scale(1.18) rotate(-6deg); }
+.ui-sw.sm .ui-sw-opt { padding: 6px 12px; font-size: 12.5px; }
+.ui-sw.sm .ui-sw-ind { top: 3px; bottom: 3px; }
+.ui-sw.sm { padding: 3px; }
+.ui-app .ui-sw-opt:focus-visible { outline-offset: -2px; }
+
+/* the board itself re-plays its entrance every time you switch */
+.ui-lb-body { animation: ui-fade 0.35s ease backwards; }
+.ui-pod { animation: ui-rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(var(--i, 0) * 90ms); position: relative; }
+.ui-pod .ui-pod-block { animation-delay: calc(0.1s + var(--i, 0) * 90ms); }
+.ui-crown { display: grid; place-items: center; width: 30px; height: 30px; margin-bottom: -2px; border-radius: 50%; color: #7a4d00; background: linear-gradient(135deg, #fde68a, #f59e0b); box-shadow: 0 6px 14px -6px rgba(245, 158, 11, 0.8); animation: ui-drop 0.7s 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards, ui-float 3.2s 1.3s ease-in-out infinite; }
+.ui-pod:hover .ui-avatar { transform: translateY(-3px) scale(1.06); }
+.ui-pod .ui-avatar { transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.4, 1); }
+.ui-lb-list li { animation: ui-rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(0.25s + var(--i, 0) * 45ms); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.ui-lb-list li:hover { transform: translateX(4px); box-shadow: 0 10px 22px -16px rgba(20, 33, 61, 0.5); }
+.ui-lb-list li.me { animation: ui-rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards, ui-me-glow 2.2s 1s ease-out 2; animation-delay: calc(0.25s + var(--i, 0) * 45ms), 1s; }
+.ui-lb-me { animation: ui-rise 0.5s 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+@keyframes ui-me-glow { 0% { box-shadow: 0 0 0 0 rgba(59, 91, 157, 0.45); } 100% { box-shadow: 0 0 0 12px rgba(59, 91, 157, 0); } }
+@media (max-width: 720px) {
+  .ui-sw-opt { padding: 8px 12px; font-size: 13px; }
+}

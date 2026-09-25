@@ -5,7 +5,7 @@ import './styles.css';
 import './theme.css';
 import {
   Icon, Ring, AreaChart, Chip, Avatar, SkeletonCard, EmptyState, ToastHost, UiTabs, spotlight, useTilt,
-  useCountUp, useSpCelebration, useScrolledPast, burst, toast
+  useCountUp, useSpCelebration, useScrolledPast, burst, toast, PillGroup, CountNum
 } from './ui.jsx';
 import {
   TIERS, tierTrack, tierKey, nextLeague, levelProgress, pollSortKey, recentSessionDots, expectedPct, paceTone
@@ -988,11 +988,35 @@ const LB_PRESETS = [
 const PODIUM_H = { 1: 132, 2: 108, 3: 92 };
 const PODIUM_LABEL = { 1: '1st', 2: '2nd', 3: '3rd' };
 
+// The dropdown of presets became two linked controls: WHICH board (chips) and WHEN (a
+// small toggle). Both are derived from LB_PRESETS, so a preset added there shows up here.
+const BOARD_META = {
+  'total:all': ['Overall', 'trophy'], 'total:cohort': ['My Cohort', 'users'], 'attendance:all': ['Attendance', 'calendar'],
+  'poll:all': ['Poll Champions', 'target'], 'spa:all': ['Top SPA', 'book'], 'query:all': ['Query Answerers', 'chat'],
+  'quiz:all': ['Daily Quiz', 'bolt']
+};
+const WINDOW_LABEL = { day: 'Today', week: 'This Week', all: 'All-Time' };
+const WINDOW_ORDER = ['day', 'week', 'all'];
+const boardOf = p => `${p.category}:${p.scope}`;
+const LB_BOARDS = (() => {
+  const boards = new Map();
+  for (const p of LB_PRESETS) {
+    const k = boardOf(p);
+    if (!boards.has(k)) boards.set(k, { key: k, label: BOARD_META[k]?.[0] || p.label, icon: BOARD_META[k]?.[1] || 'trophy', windows: [] });
+    boards.get(k).windows.push(p.window);
+  }
+  return [...boards.values()].map(b => ({ ...b, windows: WINDOW_ORDER.filter(w => b.windows.includes(w)) }));
+})();
+
 function LeaderboardPanel({ student }) {
-  const [presetKey, setPresetKey] = useState('week-total');
+  const [boardKey, setBoardKey] = useState('total:all');
+  const [wantWin, setWantWin] = useState('week');
+  const board = LB_BOARDS.find(b => b.key === boardKey) || LB_BOARDS[0];
+  // Switching to a board that has no such window (e.g. Today -> Overall) falls back to This Week.
+  const win = board.windows.includes(wantWin) ? wantWin : (board.windows.includes('week') ? 'week' : board.windows[0]);
+  const preset = LB_PRESETS.find(p => boardOf(p) === board.key && p.window === win) || LB_PRESETS[0];
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const preset = LB_PRESETS.find(p => p.key === presetKey);
   useEffect(() => {
     let live = true;
     setLoading(true);
@@ -1001,7 +1025,7 @@ function LeaderboardPanel({ student }) {
       .then(d => { if (live) { setData(d); setLoading(false); } })
       .catch(() => { if (live) setLoading(false); });
     return () => { live = false; };
-  }, [presetKey, student.email]);
+  }, [preset.key, student.email]);
   const rows = data?.rows || [];
   const me = data?.me || null;
   const meOutside = me && !rows.some(r => r.studentId === student._id);
@@ -1014,27 +1038,26 @@ function LeaderboardPanel({ student }) {
     <section className="ui-card ui-lb">
       <div className="ui-card-head">
         <h2><Icon name="trophy" size={18} /> Leaderboard</h2>
-        <label className="ui-select">
-          <span className="ui-vh">Board</span>
-          <select value={presetKey} onChange={e => setPresetKey(e.target.value)}>
-            {LB_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-          </select>
-          <Icon name="chevronDown" size={16} />
-        </label>
+      </div>
+      <div className="ui-lb-controls">
+        <PillGroup label="Leaderboard" items={LB_BOARDS.map(b => ({ key: b.key, label: b.label, icon: b.icon }))} value={board.key} onChange={setBoardKey} />
+        <PillGroup label="Time window" size="sm" items={board.windows.map(w => ({ key: w, label: WINDOW_LABEL[w] }))} value={win} onChange={setWantWin} />
       </div>
       {preset.window === 'week' && data?.weekLabel && <p className="ui-muted ui-lb-week">Week of {data.weekLabel} · resets Monday</p>}
+      {preset.window === 'day' && <p className="ui-muted ui-lb-week">Today’s points only · resets at midnight IST</p>}
       {loading ? (
         <div className="ui-stack"><SkeletonCard rows={3} title={false} /><SkeletonCard rows={4} title={false} /></div>
       ) : rows.length === 0 ? (
         <EmptyState icon="trophy" title="No entries yet">This board fills up as points are recorded.</EmptyState>
       ) : (
-        <>
+        <div className="ui-lb-body" key={preset.key}>
           <div className="ui-podium">
-            {podium.map(r => (
-              <div key={r.studentId} className={`ui-pod p${r.rank <= 3 ? r.rank : 'x'} ${r.studentId === student._id ? 'me' : ''}`}>
+            {podium.map((r, i) => (
+              <div key={r.studentId} className={`ui-pod p${r.rank <= 3 ? r.rank : 'x'} ${r.studentId === student._id ? 'me' : ''}`} style={{ '--i': i }}>
+                {r.rank === 1 && <span className="ui-crown" aria-hidden="true"><Icon name="medal" size={20} /></span>}
                 <Avatar name={r.name} size={r.rank === 1 ? 62 : 52} />
                 <b title={r.name}>{r.name}</b>
-                <span className="ui-pod-sp">{r.sp} SP</span>
+                <span className="ui-pod-sp"><CountNum value={r.sp} /> SP</span>
                 <div className="ui-pod-block" style={{ height: PODIUM_H[r.rank] || 78 }}>
                   <strong>{r.rank <= 3 ? PODIUM_LABEL[r.rank] : `#${r.rank}`}</strong>
                   <small>Level {r.level}</small>
@@ -1044,24 +1067,24 @@ function LeaderboardPanel({ student }) {
           </div>
           {rest.length > 0 && (
             <ol className="ui-lb-list" start={4}>
-              {rest.map(r => (
-                <li key={r.studentId} className={r.studentId === student._id ? 'me' : ''} style={{ '--w': `${((Number(r.sp) || 0) / max) * 100}%` }}>
+              {rest.map((r, i) => (
+                <li key={r.studentId} className={r.studentId === student._id ? 'me' : ''} style={{ '--w': `${((Number(r.sp) || 0) / max) * 100}%`, '--i': Math.min(i, 14) }}>
                   <i className="ui-lb-bar" aria-hidden="true" />
                   <span className="ui-lb-rank">{r.rank}</span>
                   <Avatar name={r.name} size={32} />
                   <span className="ui-lb-name">{r.name}<small>Level {r.level}</small></span>
-                  <b className="ui-lb-sp">{r.sp}</b>
+                  <b className="ui-lb-sp"><CountNum value={r.sp} /></b>
                 </li>
               ))}
             </ol>
           )}
           {me && (
             <div className="ui-lb-me">
-              <Icon name="spark" size={16} /> You: <b>#{me.rank}</b> · {me.sp} SP
-              {meOutside && <span className="ui-muted"> — {preset.window === 'week' ? 'earn more this week to climb' : 'keep going to climb'}</span>}
+              <Icon name="spark" size={16} /> You: <b>#{me.rank}</b> · <CountNum value={me.sp} /> SP
+              {meOutside && <span className="ui-muted"> — {preset.window === 'all' ? 'keep going to climb' : `earn more ${preset.window === 'day' ? 'today' : 'this week'} to climb`}</span>}
             </div>
           )}
-        </>
+        </div>
       )}
     </section>
   );
