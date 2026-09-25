@@ -706,3 +706,35 @@
 @media (max-width: 720px) {
   .ui-sw-opt { padding: 8px 12px; font-size: 13px; }
 }
+
+
+/* ── Podium: metal medals per place + a stage that feels like a podium ─────────── */
+.ui-podium { position: relative; isolation: isolate; padding: 30px 10px 0; margin-bottom: 30px; border-radius: 22px;
+  background: radial-gradient(70% 100% at 50% 100%, rgba(233, 180, 76, 0.2), transparent 72%), linear-gradient(180deg, rgba(20, 33, 61, 0.03), transparent 60%); }
+.ui-podium::before { content: ''; position: absolute; z-index: -1; left: 50%; top: 0; width: 44%; height: 100%; transform: translateX(-50%); pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 233, 160, 0.5), rgba(255, 233, 160, 0) 78%); clip-path: polygon(40% 0, 60% 0, 100% 100%, 0 100%); animation: ui-fade 1.2s 0.3s ease backwards; }
+.ui-podium::after { content: ''; position: absolute; z-index: -1; left: -4px; right: -4px; bottom: -12px; height: 16px; border-radius: 0 0 16px 16px;
+  background: linear-gradient(180deg, #c9d1de, #9aa6bb); box-shadow: 0 16px 24px -14px rgba(20, 33, 61, 0.55); }
+.ui-pod { z-index: 1; }
+.ui-pod-block { position: relative; overflow: hidden;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.55), inset 0 -18px 26px -16px rgba(0, 0, 0, 0.32), 0 12px 20px -14px rgba(20, 33, 61, 0.55); }
+.ui-pod-block::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 14px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.05)); }
+.ui-pod-block::after { content: ''; position: absolute; top: 0; bottom: 0; left: -70%; width: 40%; transform: skewX(-18deg); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent); animation: ui-sweep 4.5s 1.4s ease-in-out infinite; }
+.ui-pod.p2 .ui-pod-block::after { animation-delay: 2.1s; } .ui-pod.p3 .ui-pod-block::after { animation-delay: 2.8s; }
+.ui-pod-block strong { position: relative; z-index: 1; font-size: 30px; letter-spacing: -0.02em; }
+.ui-pod-block small { position: relative; z-index: 1; }
+.ui-pod.p1 .ui-pod-block { background: linear-gradient(160deg, #fde68a 0%, #f5b93a 55%, #d9922a 100%); color: #5a3800; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5); }
+.ui-pod.p2 .ui-pod-block { background: linear-gradient(160deg, #eef1f6 0%, #b9c2d0 55%, #97a3b6 100%); color: #2b3648; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55); }
+.ui-pod.p3 .ui-pod-block { background: linear-gradient(160deg, #f6cfa8 0%, #d38c4f 55%, #b56f35 100%); color: #4a2607; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
+
+.ui-coin { display: grid; place-items: center; width: 34px; height: 34px; margin-bottom: -4px; border-radius: 50%; font-size: 16px; font-weight: 800; line-height: 1;
+  border: 2px solid rgba(255, 255, 255, 0.9); box-shadow: 0 8px 16px -8px rgba(20, 33, 61, 0.6), inset 0 -3px 5px rgba(0, 0, 0, 0.18);
+  animation: ui-drop 0.7s 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards, ui-float 3.4s 1.3s ease-in-out infinite; }
+.ui-coin.c1 { color: #6b4300; background: radial-gradient(circle at 35% 30%, #fff4c4, #f5c24a 55%, #d9922a); }
+.ui-coin.c2 { color: #2b3648; background: radial-gradient(circle at 35% 30%, #ffffff, #c2cad6 55%, #97a3b6); animation-delay: 0.62s, 1.6s; }
+.ui-coin.c3 { color: #4a2607; background: radial-gradient(circle at 35% 30%, #ffe3c6, #dc9a5e 55%, #b56f35); animation-delay: 0.74s, 1.9s; }
+.ui-pod.p1 .ui-avatar { box-shadow: 0 0 0 3px #fff, 0 0 0 6px #f0b83c, 0 12px 22px -8px rgba(217, 146, 42, 0.7); }
+.ui-pod.p2 .ui-avatar { box-shadow: 0 0 0 3px #fff, 0 0 0 6px #b2bccb, 0 12px 22px -8px rgba(120, 132, 152, 0.6); }
+.ui-pod.p3 .ui-avatar { box-shadow: 0 0 0 3px #fff, 0 0 0 6px #d38c4f, 0 12px 22px -8px rgba(181, 111, 53, 0.6); }
+.ui-tied { margin-top: -2px; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; font-style: normal; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ui-ink-2); background: rgba(20, 33, 61, 0.07); }
+@media (max-width: 720px) { .ui-pod-block strong { font-size: 22px; } .ui-coin { width: 28px; height: 28px; font-size: 14px; } }

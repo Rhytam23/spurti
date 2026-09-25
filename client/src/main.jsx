@@ -1029,8 +1029,11 @@ function LeaderboardPanel({ student }) {
   const rows = data?.rows || [];
   const me = data?.me || null;
   const meOutside = me && !rows.some(r => r.studentId === student._id);
-  const top = rows.slice(0, 3);
-  const rest = rows.slice(3);
+  // Nobody stands on the podium (or wears a medal) for 0 SP: a board where everyone is tied
+  // on nothing is "no results yet", not three gold medals.
+  const scored = rows.filter(r => (Number(r.sp) || 0) > 0);
+  const top = scored.slice(0, 3);
+  const rest = rows.filter(r => !top.includes(r));
   const max = Math.max(1, ...rows.map(r => Number(r.sp) || 0));
   // Visual order of the podium: 2nd, 1st, 3rd (row order in, so ties keep their order).
   const podium = top.length === 3 ? [top[1], top[0], top[2]] : top;
@@ -1047,16 +1050,17 @@ function LeaderboardPanel({ student }) {
       {preset.window === 'day' && <p className="ui-muted ui-lb-week">Today’s points only · resets at midnight IST</p>}
       {loading ? (
         <div className="ui-stack"><SkeletonCard rows={3} title={false} /><SkeletonCard rows={4} title={false} /></div>
-      ) : rows.length === 0 ? (
-        <EmptyState icon="trophy" title="No entries yet">This board fills up as points are recorded.</EmptyState>
+      ) : scored.length === 0 ? (
+        <EmptyState icon="trophy" title="No entries yet">Nobody has earned points on this board yet — it fills up as points are recorded.</EmptyState>
       ) : (
         <div className="ui-lb-body" key={preset.key}>
           <div className="ui-podium">
             {podium.map((r, i) => (
               <div key={r.studentId} className={`ui-pod p${r.rank <= 3 ? r.rank : 'x'} ${r.studentId === student._id ? 'me' : ''}`} style={{ '--i': i }}>
-                {r.rank === 1 && <span className="ui-crown" aria-hidden="true"><Icon name="medal" size={20} /></span>}
-                <Avatar name={r.name} size={r.rank === 1 ? 62 : 52} />
+                {r.rank <= 3 && <span className={`ui-coin c${r.rank}`} aria-hidden="true">{r.rank}</span>}
+                <Avatar name={r.name} size={r.rank === 1 ? 64 : 54} />
                 <b title={r.name}>{r.name}</b>
+                {top.filter(x => x.rank === r.rank).length > 1 && <em className="ui-tied">tied</em>}
                 <span className="ui-pod-sp"><CountNum value={r.sp} /> SP</span>
                 <div className="ui-pod-block" style={{ height: PODIUM_H[r.rank] || 78 }}>
                   <strong>{r.rank <= 3 ? PODIUM_LABEL[r.rank] : `#${r.rank}`}</strong>
