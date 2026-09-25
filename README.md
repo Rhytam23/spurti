@@ -126,7 +126,10 @@ server/
   migrations/          dated, run-once scripts
   data/cards/          generated achievement card PNGs
 client/
-  src/main.jsx         the entire UI (~2,000 lines, single file)
+  src/main.jsx         the screens and their data fetching (~2,700 lines, one file)
+  src/ui.jsx           presentational primitives: rings, charts, icons, confetti, toasts, tabs
+  src/theme.css        the dashboard's look (.ui-* classes, scoped to .ui-app; Admin uses styles.css)
+  src/progress.js      pure helpers behind the visuals (league bands, level maths, "points went up")
   src/shareCard.js     the share card, drawn to canvas in the student's own browser
 pipeline/              the SP recompute chain + its cron definitions; README.md inside
 CONTEXT.md             the deep reference: schema, SP rubric, admin endpoints, server details
