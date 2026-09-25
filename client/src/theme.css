@@ -738,3 +738,133 @@
 .ui-pod.p3 .ui-avatar { box-shadow: 0 0 0 3px #fff, 0 0 0 6px #d38c4f, 0 12px 22px -8px rgba(181, 111, 53, 0.6); }
 .ui-tied { margin-top: -2px; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; font-style: normal; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ui-ink-2); background: rgba(20, 33, 61, 0.07); }
 @media (max-width: 720px) { .ui-pod-block strong { font-size: 22px; } .ui-coin { width: 28px; height: 28px; font-size: 14px; } }
+
+
+/* ══ Theme toggle ═════════════════════════════════════════════════════════════ */
+.ui-theme { display: inline-grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--ui-line); background: var(--ui-solid); color: var(--ui-ink-2); cursor: pointer; transition: transform 0.3s cubic-bezier(0.3, 1.6, 0.4, 1), background 0.25s, color 0.25s; }
+.ui-theme:hover { transform: rotate(18deg) scale(1.08); color: var(--ui-ink); }
+.ui-theme.in-nav { margin-left: auto; }
+.ui-theme.push { margin-left: auto; }
+.ui-nav.is-pinned .ui-theme { width: 34px; height: 34px; }
+html { color-scheme: light; }
+html[data-ui-theme='dark'] { color-scheme: dark; }
+html[data-ui-theme='dark'] body { background: #121729; }
+
+/* ══ Dark — "dusk" ════════════════════════════════════════════════════════════
+   Deep indigo-slate, not black: page #121729, cards a step lighter, text soft white.
+   The legacy variables (--panel, --text, --line, ...) are remapped too, so the older
+   components inside .ui-app (tables, forms, modals) follow without extra rules. */
+.ui-app[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #121729; --panel: #1b2240; --text: #e8ecf8; --muted: #98a4c4; --line: rgba(176, 192, 255, 0.16);
+  --primary: #86a6f7; --primary-dark: #a9c0fb; --green: #46c79a; --red: #f17b7b; --amber: #e2ab4f;
+  --shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+  --ui-ink: #e8ecf8; --ui-ink-2: #c4ccE4; --ui-muted: #98a4c4; --ui-line: rgba(176, 192, 255, 0.14);
+  --ui-surface: rgba(28, 35, 66, 0.86); --ui-solid: #1b2240; --ui-tint: #232c50;
+  --ui-brand: #a5bdfb; --ui-indigo: #7f9be6; --ui-green: #5fd3a5; --ui-red: #f17b7b;
+  --ui-grad: linear-gradient(135deg, #5479d8 0%, #3a5ab8 100%);
+  --ui-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 14px 34px -14px rgba(0, 0, 0, 0.55);
+  --ui-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.3), 0 22px 44px -16px rgba(0, 0, 0, 0.65);
+  background:
+    radial-gradient(60rem 36rem at 6% -8%, rgba(84, 121, 216, 0.20), transparent 62%),
+    radial-gradient(52rem 34rem at 100% 2%, rgba(201, 138, 43, 0.09), transparent 62%),
+    radial-gradient(46rem 38rem at 62% 112%, rgba(110, 96, 200, 0.14), transparent 62%),
+    #121729;
+}
+.ui-app[data-theme='dark']::before { opacity: 0.8; }
+.ui-app[data-theme='dark']::after { opacity: 0.05; }
+.ui-app[data-theme='dark'] :focus-visible { outline-color: rgba(134, 166, 247, 0.75); }
+
+/* surfaces that were hard-coded white / pale tints */
+.ui-app[data-theme='dark'] .ui-tabs { background: rgba(27, 34, 64, 0.82); }
+.ui-app[data-theme='dark'] .ui-nav.is-pinned { background: #1a213e; box-shadow: 0 14px 30px -18px rgba(0, 0, 0, 0.8); }
+.ui-app[data-theme='dark'] .ui-nav.is-pinned .ui-tabs { background: transparent; }
+.ui-app[data-theme='dark'] .ui-ring-track { stroke: rgba(255, 255, 255, 0.10); }
+.ui-app[data-theme='dark'] .ui-bar div,
+.ui-app[data-theme='dark'] .ui-bar-h { background: rgba(255, 255, 255, 0.09); }
+.ui-app[data-theme='dark'] .ui-dots i.off { background: rgba(255, 255, 255, 0.16); }
+.ui-app[data-theme='dark'] .ui-area-dot { background: #1b2240; }
+.ui-app[data-theme='dark'] .ui-area-cross { background: rgba(165, 189, 251, 0.35); }
+.ui-app[data-theme='dark'] .ui-area-line-stop-a { stop-color: #86a6f7; }
+.ui-app[data-theme='dark'] .ui-area stop:first-child { stop-color: #86a6f7; }
+.ui-app[data-theme='dark'] .ui-area linearGradient:last-child stop:last-child { stop-color: #b4c6fb; }
+.ui-app[data-theme='dark'] .ui-tip { background: #0d1224; border: 1px solid rgba(176, 192, 255, 0.2); }
+.ui-app[data-theme='dark'] .ui-toast { background: #0d1224; border: 1px solid rgba(176, 192, 255, 0.2); }
+
+.ui-app[data-theme='dark'] .ui-nudge,
+.ui-app[data-theme='dark'] .ui-ann-item.new { color: #ffdcb8; border-color: rgba(251, 146, 60, 0.38); background: linear-gradient(135deg, rgba(251, 146, 60, 0.16), rgba(245, 158, 11, 0.09)); }
+.ui-app[data-theme='dark'] .ui-ann-item.done { background: var(--ui-tint); }
+.ui-app[data-theme='dark'] .ui-callout { color: #ffdcb8; border-color: rgba(251, 146, 60, 0.38); background: rgba(251, 146, 60, 0.12); }
+
+.ui-app[data-theme='dark'] .ui-sp-pill { color: #6ee7b7; background: rgba(52, 211, 153, 0.16); }
+.ui-app[data-theme='dark'] .ui-sp-pill.neg { color: #fca5a5; background: rgba(248, 113, 113, 0.16); }
+.ui-app[data-theme='dark'] .ui-stat { background: color-mix(in srgb, var(--c) 16%, var(--ui-solid)); border-color: color-mix(in srgb, var(--c) 30%, transparent); }
+.ui-app[data-theme='dark'] .ui-stat-ico { background: color-mix(in srgb, var(--c) 24%, var(--ui-solid)); }
+.ui-app[data-theme='dark'] .ui-stat.flame { background: linear-gradient(135deg, rgba(251, 146, 60, 0.18), rgba(244, 63, 94, 0.12)); border-color: rgba(251, 146, 60, 0.4); }
+.ui-app[data-theme='dark'] .ui-stat.flame .ui-stat-ico { background: rgba(251, 146, 60, 0.22); color: #fdba74; }
+.ui-app[data-theme='dark'] .ui-pill { background: color-mix(in srgb, var(--c) 20%, var(--ui-solid)); }
+.ui-app[data-theme='dark'] .ui-pill.amber { color: #fcd34d; background: rgba(245, 158, 11, 0.18); }
+.ui-app[data-theme='dark'] .ui-step { background: var(--ui-solid); }
+.ui-app[data-theme='dark'] .ui-step.done { background: color-mix(in srgb, var(--c) 20%, var(--ui-solid)); }
+.ui-app[data-theme='dark'] .ui-tx { background: var(--ui-solid); }
+.ui-app[data-theme='dark'] .ui-tx-ico { background: color-mix(in srgb, var(--cc) 22%, var(--ui-solid)); }
+.ui-app[data-theme='dark'] .ui-cat { background: color-mix(in srgb, var(--cc) 22%, var(--ui-solid)); }
+.ui-app[data-theme='dark'] .ui-track-ico { background: linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 60%, #000)); }
+.ui-app[data-theme='dark'] .ui-seg { background: rgba(255, 255, 255, 0.16); }
+
+/* inputs, selects, search */
+.ui-app[data-theme='dark'] input,
+.ui-app[data-theme='dark'] select,
+.ui-app[data-theme='dark'] textarea { background: var(--ui-tint); color: var(--ui-ink); border-color: var(--ui-line); }
+.ui-app[data-theme='dark'] .ui-goal-row input,
+.ui-app[data-theme='dark'] .ui-select select,
+.ui-app[data-theme='dark'] .ui-search { background: var(--ui-tint); color: var(--ui-ink); }
+.ui-app[data-theme='dark'] .ui-search input { background: transparent; }
+.ui-app[data-theme='dark'] .ui-goal-row input[type='date'] { color-scheme: dark; }
+
+/* leaderboard, achievements, FAQ */
+.ui-app[data-theme='dark'] .ui-lb-list li { background: var(--ui-solid); }
+.ui-app[data-theme='dark'] .ui-lb-list li.me { background: rgba(127, 155, 230, 0.16); }
+.ui-app[data-theme='dark'] .ui-lb-me { background: linear-gradient(135deg, rgba(127, 155, 230, 0.16), rgba(127, 155, 230, 0.07)); }
+.ui-app[data-theme='dark'] .ui-lb-bar { background: linear-gradient(90deg, rgba(127, 155, 230, 0.2), rgba(201, 138, 43, 0.08)); }
+.ui-app[data-theme='dark'] .ui-pod.me .ui-pod-block { box-shadow: 0 0 0 3px #121729, 0 0 0 6px var(--ui-indigo); }
+.ui-app[data-theme='dark'] .ui-pod .ui-avatar { --ring: #121729; }
+.ui-app[data-theme='dark'] .ui-pod.p1 .ui-avatar { box-shadow: 0 0 0 3px #121729, 0 0 0 6px #f0b83c, 0 12px 22px -8px rgba(217, 146, 42, 0.6); }
+.ui-app[data-theme='dark'] .ui-pod.p2 .ui-avatar { box-shadow: 0 0 0 3px #121729, 0 0 0 6px #b2bccb, 0 12px 22px -8px rgba(120, 132, 152, 0.5); }
+.ui-app[data-theme='dark'] .ui-pod.p3 .ui-avatar { box-shadow: 0 0 0 3px #121729, 0 0 0 6px #d38c4f, 0 12px 22px -8px rgba(181, 111, 53, 0.5); }
+.ui-app[data-theme='dark'] .ui-podium { background: radial-gradient(70% 100% at 50% 100%, rgba(233, 180, 76, 0.16), transparent 72%), linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%); }
+.ui-app[data-theme='dark'] .ui-podium::after { background: linear-gradient(180deg, #37426b, #283155); box-shadow: 0 16px 24px -14px rgba(0, 0, 0, 0.7); }
+.ui-app[data-theme='dark'] .ui-podium::before { background: linear-gradient(180deg, rgba(255, 221, 130, 0.28), rgba(255, 221, 130, 0) 78%); }
+.ui-app[data-theme='dark'] .ui-tied { color: var(--ui-ink-2); background: rgba(255, 255, 255, 0.10); }
+.ui-app[data-theme='dark'] .ui-ach { background: var(--ui-solid); }
+.ui-app[data-theme='dark'] .ui-ach-items li { background: var(--ui-tint); }
+.ui-app[data-theme='dark'] .ui-ach.locked { background: rgba(255, 255, 255, 0.04); }
+.ui-app[data-theme='dark'] .ui-acc { background: var(--ui-solid); }
+.ui-app[data-theme='dark'] .ui-acc.open { box-shadow: 0 14px 28px -20px rgba(0, 0, 0, 0.8); }
+.ui-app[data-theme='dark'] .ui-rate { background: linear-gradient(160deg, var(--ui-solid), var(--ui-tint)); }
+.ui-app[data-theme='dark'] .ui-rate.total { background: linear-gradient(135deg, #14213d, #3a5ab8); }
+
+/* skeletons, empty states, verify page */
+.ui-app[data-theme='dark'] .ui-skel { background: linear-gradient(90deg, #202850 0%, #2b3562 50%, #202850 100%); background-size: 200% 100%; }
+.ui-app[data-theme='dark'] .ui-empty-art { color: var(--ui-brand); background: linear-gradient(135deg, #252e58, #1f274b); }
+.ui-app[data-theme='dark'] .ui-cred { background: linear-gradient(#1b2240, #1b2240) padding-box, linear-gradient(135deg, #5479d8, #7f9be6 55%, #c98a2b) border-box; }
+.ui-app[data-theme='dark'] .ui-cred-glow { background: radial-gradient(380px circle at var(--gx, 50%) var(--gy, 18%), rgba(127, 155, 230, 0.2), transparent 62%); }
+.ui-app[data-theme='dark'] .ui-verified { color: #6ee7b7; background: rgba(52, 211, 153, 0.14); }
+.ui-app[data-theme='dark'] .ui-verified.bad { color: #fca5a5; background: rgba(248, 113, 113, 0.14); }
+
+/* older components living inside .ui-app: modals, tables, buttons */
+.ui-app[data-theme='dark'] .modal { background: var(--ui-solid); border-color: var(--ui-line); box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.8); color: var(--ui-ink); }
+.ui-app[data-theme='dark'] .overlay { background: rgba(6, 9, 20, 0.66); }
+.ui-app[data-theme='dark'] .table th { background: var(--ui-tint); color: var(--ui-ink-2); }
+.ui-app[data-theme='dark'] .table tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
+.ui-app[data-theme='dark'] .table td, .ui-app[data-theme='dark'] .table th { border-color: var(--ui-line); }
+.ui-app[data-theme='dark'] .icon { background: var(--ui-tint); color: var(--ui-ink); }
+.ui-app[data-theme='dark'] .secondary { background: rgba(134, 166, 247, 0.14); color: var(--ui-brand); }
+.ui-app[data-theme='dark'] .ui-btn.ghost { background: rgba(134, 166, 247, 0.14); color: var(--ui-brand); }
+.ui-app[data-theme='dark'] .post-howto { background: var(--ui-tint); }
+.ui-app[data-theme='dark'] .jr-pill { background: var(--ui-tint); }
+.ui-app[data-theme='dark'] .panel { background: var(--ui-solid); color: var(--ui-ink); }
+.ui-app[data-theme='dark'] .muted, .ui-app[data-theme='dark'] .ui-muted { color: var(--ui-muted); }
+.ui-app[data-theme='dark'] .ui-sw-opt:hover { color: #fff; }
+.ui-app[data-theme='dark'] .ui-hero { box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.07); }
+.ui-app[data-theme='dark'] .ui-avatar { box-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.6), inset 0 0 0 2px rgba(255, 255, 255, 0.35); }

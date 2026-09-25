@@ -5,7 +5,7 @@ import './styles.css';
 import './theme.css';
 import {
   Icon, Ring, AreaChart, Chip, Avatar, SkeletonCard, EmptyState, ToastHost, UiTabs, spotlight, useTilt,
-  useCountUp, useSpCelebration, useScrolledPast, burst, toast, PillGroup, CountNum
+  useCountUp, useSpCelebration, useScrolledPast, burst, toast, PillGroup, CountNum, useTheme, ThemeToggle
 } from './ui.jsx';
 import {
   TIERS, tierTrack, tierKey, nextLeague, levelProgress, pollSortKey, recentSessionDots, expectedPct, paceTone
@@ -334,6 +334,7 @@ function StudentView({ profile, onBack, surveyBlocking = false }) {
   const streak = useJourneyStreak(student.email);
   const heroRef = useRef(null);
   const pinned = useScrolledPast(heroRef);
+  const { theme, toggle: toggleTheme } = useTheme();
   const many = unseenAchievements > 1;
   const tabs = [
     ['bank', 'SP Bank'],
@@ -345,7 +346,7 @@ function StudentView({ profile, onBack, surveyBlocking = false }) {
     ['faq', 'FAQ']
   ];
   return (
-    <div className="ui-app">
+    <div className="ui-app" data-theme={theme}>
       <ToastHost />
       <main className="ui-page">
         <Hero heroRef={heroRef} profile={profile} onBack={onBack} streak={streak} cel={cel} dismiss={dismiss} anchorRef={anchorRef} />
@@ -370,7 +371,7 @@ function StudentView({ profile, onBack, surveyBlocking = false }) {
           <StandingCard profile={profile} />
           <TrendCard student={student} transactions={profile.transactions} />
         </div>
-        <UiTabs tab={tab} setTab={selectTab} tabs={tabs} icons={TAB_ICONS} pinned={pinned}
+        <UiTabs tab={tab} setTab={selectTab} tabs={tabs} icons={TAB_ICONS} pinned={pinned} extra={<ThemeToggle theme={theme} toggle={toggleTheme} className="in-nav" />}
           identity={<><Avatar name={student.name} size={30} /><b>{student.name}</b><span>{student.totalSp} SP</span></>} />
         <div className="ui-panel" id="ui-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} key={tab}>
           {tab === 'bank' && <UiSpBank transactions={profile.transactions} />}
@@ -918,6 +919,7 @@ function VerifyView({ code }) {
       .then(d => setState({ loading: false, ...d }))
       .catch(() => setState({ loading: false, valid: false }));
   }, [code]);
+  const { theme, toggle: toggleTheme } = useTheme();
   const copy = async () => {
     const ok = await copyText(window.location.href);
     setCopied(ok);
@@ -925,9 +927,9 @@ function VerifyView({ code }) {
   };
 
   return (
-    <div className="ui-app ui-verify-app">
+    <div className="ui-app ui-verify-app" data-theme={theme}>
       <main className="ui-verify">
-        <div className="ui-brand"><span className="ui-brand-mark" aria-hidden="true">S</span><b>Spurti</b><em>VLED Summership · IIT Ropar</em></div>
+        <div className="ui-brand"><span className="ui-brand-mark" aria-hidden="true">S</span><b>Spurti</b><em>VLED Summership · IIT Ropar</em><ThemeToggle theme={theme} toggle={toggleTheme} className="push" /></div>
         {state.loading ? <SkeletonCard rows={5} /> : state.valid ? (
           <article className="ui-cred" ref={tilt.ref} onPointerMove={tilt.onPointerMove} onPointerLeave={tilt.onPointerLeave}>
             <div className="ui-cred-glow" aria-hidden="true" />

@@ -40,6 +40,7 @@ const ICONS = {
   clock: <><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></>,
   bolt: <path d="M13 2 3 14h9l-1 8 10-12h-9z" />,
   chat: <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
+  moon: <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />,
   lock: <><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
   users: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
   shield: <><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></>,
@@ -492,4 +493,43 @@ export function PillGroup({ items, value, onChange, label, size = 'md' }) {
 export function CountNum({ value }) {
   const v = useCountUp(Number(value) || 0, { duration: 900 });
   return <>{v}</>;
+}
+
+
+/* ── Theme: light / dark ("dusk"). Follows the device until the student picks one. ── */
+const THEME_KEY = 'spurti:theme:v1';
+const readTheme = () => { try { const v = localStorage.getItem(THEME_KEY); return v === 'dark' || v === 'light' ? v : null; } catch { return null; } };
+const systemDark = () => { try { return window.matchMedia('(prefers-color-scheme: dark)').matches; } catch { return false; } };
+
+export function useTheme() {
+  const [pref, setPref] = useState(readTheme);      // null = follow the device
+  const [sys, setSys] = useState(systemDark);
+  useEffect(() => {
+    let mq; try { mq = window.matchMedia('(prefers-color-scheme: dark)'); } catch { return undefined; }
+    const on = (e) => setSys(e.matches);
+    mq.addEventListener?.('change', on);
+    return () => mq.removeEventListener?.('change', on);
+  }, []);
+  const theme = pref || (sys ? 'dark' : 'light');
+  // The page background behind .ui-app (overscroll, safe areas) is the body's, so mirror the choice on <html>.
+  useLayoutEffect(() => {
+    document.documentElement.dataset.uiTheme = theme;
+    return () => { delete document.documentElement.dataset.uiTheme; };
+  }, [theme]);
+  const toggle = useCallback(() => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setPref(next);
+    try { localStorage.setItem(THEME_KEY, next); } catch { /* the choice just won't be remembered */ }
+  }, [theme]);
+  return { theme, toggle };
+}
+
+export function ThemeToggle({ theme, toggle, className = '' }) {
+  const dark = theme === 'dark';
+  return (
+    <button type="button" className={`ui-theme ${className}`} onClick={toggle} aria-pressed={dark}
+      aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} title={dark ? 'Light mode' : 'Dark mode'}>
+      <Icon name={dark ? 'sun' : 'moon'} size={17} />
+    </button>
+  );
 }
