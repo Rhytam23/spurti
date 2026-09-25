@@ -5,7 +5,7 @@ import Achievement, { awardAchievements } from '../models/Achievement.js';
 import BoardReign from '../models/BoardReign.js';
 import { levelFor } from './levels.js';
 
-const CAT_LABEL = { total: 'Overall', attendance: 'Best Attendance', poll: 'Poll Champions', spa: 'Top SPA', query: 'Top Query Answerers' };
+const CAT_LABEL = { total: 'Overall', attendance: 'Best Attendance', poll: 'Poll Champions', spa: 'Top SPA', query: 'Top Query Answerers', quiz: 'Daily Quiz Stars' };
 
 // Achievement titles, one per board. The SAME title is used for all three podium
 // places — the medal in the card's gold disc is what says which place it was.
@@ -14,13 +14,14 @@ const ACH_TITLE = {
   attendance: 'Attendance Ace',
   poll: 'Poll Champion',
   spa: 'Peer-Learning Champion',
-  query: "Cohort's Go-To"
+  query: "Cohort's Go-To",
+  quiz: 'Quiz Star'
 };
 const PLACE_ICON = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
 // Category boards beyond the "total" board. Combined SPA (learn + teach) is one
 // category. `total` = sum of all categories in the window.
-const CATS = ['attendance', 'poll', 'spa', 'query'];
+const CATS = ['attendance', 'poll', 'spa', 'query', 'quiz'];
 const IST_MS = 5.5 * 3600 * 1000;
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -56,7 +57,9 @@ const TIE_MAX = 3;
 // ceiling first rather than by who did most. TIE_MAX already stops it minting a
 // reign; this stops the weekly cards too, until the scoring is reworked.
 // Removing 'spa' from this list is all it takes to turn them back on.
-export const AWARD_EXCLUDED_BOARDS = ['spa'];
+// 'quiz' excluded for now: no card design exists yet for a Quiz Star podium
+// card (see the card-inventory work) — the board displays, no cards mint.
+export const AWARD_EXCLUDED_BOARDS = ['spa', 'quiz'];
 
 // The weekly TOTAL board measures what a student did during that week, so the
 // +100 `initial` joining grant is excluded: it is awarded for starting, not for
@@ -191,6 +194,14 @@ export async function computeAndStoreLeaderboards() {
   for (const cat of CATS) {
     push('week', cat, 'all', null, build(students, wCat(cat)));
     push('all', cat, 'all', null, build(students, aCat(cat)));
+  }
+  // Daily quiz board: today's (IST) quiz-category SP only. Quiz txns are stamped
+  // dateTime = quizDate + 09:00Z (14:30 IST), so an IST-midnight cut is exact.
+  {
+    const istNow = new Date(now.getTime() + IST_MS);
+    const dayStart = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate()) - IST_MS);
+    const dayMap = await sumByStudentCat({ dateTime: { $gte: dayStart }, category: 'quiz' });
+    push('day', 'quiz', 'all', null, build(students, (sid) => (dayMap.get(sid)?.cat['quiz']) || 0));
   }
   // Total boards per onboarding group (weekly + all-time)
   const groups = [...new Set(students.map((s) => s.leaderboardGroup).filter(Boolean))];

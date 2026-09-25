@@ -1,11 +1,11 @@
 # Spurti Project Context
 
 ## Overview
-Spurti is a student engagement tracking app for the VLED Summership program at IIT Ropar. It awards SP (Spurti Points) for attendance, poll correctness, peer teaching/learning (SPA), answering peer queries, and ViBe course commitments. (Chat-based SP is a legacy, now-dormant source.)
+Spurti is a student engagement tracking app for the VLED Summership program at IIT Ropar. It awards SP (Spurti Points) for attendance, poll correctness, peer teaching/learning (SPA), answering peer queries, the mentor-reviewed project (+500), the daily FAQ quiz, and ViBe course commitments. (Chat-based SP is a legacy, now-dormant source.)
 
 ## Running
 - **Production:** `https://samagama.in/spurti/`
-- **Dev server:** `cd /Users/sakshivk/sakshigit/spurti && node server/server.js`
+- **Dev server:** `npm start` (see README.md)
 - **Port:** 5003
 - **MongoDB:** `sakshi_spurti` on `127.0.0.1:27017` (credentials in `.env` `MONGO_URI`, authSource: sakshi_spurti)
 
@@ -79,8 +79,10 @@ reviewedBy, reviewedAt, transactionId
 
 1. **Web app (this repo, `server/` + `client/`)** — Express API + React SPA,
    served live on `127.0.0.1:5003`. Read-only consumer of `sakshi_spurti`.
-2. **SP pipeline (`pipeline/`, deployed at `/var/samagama/server`, runs as the
-   `samagama` user via cron)** — the scoring engine that WRITES `sakshi_spurti`.
+2. **SP pipeline (`pipeline/`)** — the scoring engine that WRITES `sakshi_spurti`.
+   `sp-rubric-build-mirror.cjs` and the fetch/sync scripts run from the sakshi-side
+   checkout via `sp-refresh.sh`; the Samagama-side mirrors live in
+   `pipeline/samagama/` (deployed at `/var/samagama/server`, run as `samagama`).
    See `pipeline/README.md` for the full data flow, cron schedule, and rubric.
 
 The two communicate only through the `sakshi_spurti` MongoDB. The web app never
@@ -91,10 +93,10 @@ computes SP.
 (`zoom_meetings`, `zoom_attendance`, `zoom_polls`, `candidates`, `students`) —
 no Zoom credentials, no live Zoom Reports API, no `zoom_data`/`chatengine`
 access. This replaced the live-API dependency in the samagama-side
-`pipeline/sp-rubric-build.js` that caused the 27 Jun regression (sessions older
+`sp-rubric-build.js` (removed from the repo 18 Sep 2026) that caused the 27 Jun regression (sessions older
 than Zoom's ~3–4 week report retention were fetched as empty and scored 0).
 Samagama's only remaining job is feeding two mirrors (Zoom data + expanded
-`candidates` roster) — see `HANDOFF_MIRROR_AND_ROSTER.md`. Run:
+`candidates` roster) — the handoff note for that lives in the lab's private notes. Run:
 `node sp-rubric-build-mirror.cjs` (dry) / `APPLY=1 … node sp-rubric-build-mirror.cjs`
 (writes; auto-backs-up `sptransactions`+`students`; reconciles the leaderboard to
 the ledger, clearing anyone not in it). Rules are identical to the band/tier
@@ -107,7 +109,7 @@ old live-API `pipeline/sp-rubric-build.js` and this repo's `server/scripts/`
 CSV/±5 logic are **retired**. All categories are recomputed from scratch on every
 run (wipe-and-rebuild) except `manual`/`peer_faq`, which are preserved. Live
 categories in `sptransactions`: **`initial`, `attendance`, `poll`, `spa`,
-`query`** (plus preserved `manual`). See `pipeline/README.md` for detail.
+`query`, `project`** (plus `quiz` on the server since 15 Sep 2026, and the preserved `manual`/`peer_faq`). See `pipeline/README.md` for detail.
 
 Common tier ladder used by attendance & poll:
 `pct ≥ 90 → +10, 75–89 → +5, 50–74 → +3, < 50 → 0` (positive-only; never negative).
@@ -137,13 +139,20 @@ Common tier ladder used by attendance & poll:
   - **Before 2026-07-16:** `pct = answered / totalQuestions` from the frozen
     `zoom_polls` mirror (participation), unchanged as history has it.
 - **SPA (peer teaching/learning):** from **validated** `act_spa_endorsements`
-  (status `approved`/`audit_passed`): **+5/learned question (cap 50)** and
-  **+8/peer taught (cap 30)**. A confirmed-fraud or failed-audit flag applies a
+  (status `approved`/`audit_passed`): **+5/learned question (cap 50, max 250 SP)** and
+  **+10/peer taught (cap 25, max 250 SP)** since 5 Sep 2026 (was +8/cap 30). A confirmed-fraud or failed-audit flag applies a
   penalty (−50% / −20% of current SP). `category:'spa'`.
 - **Query answering:** **+5 per DISTINCT peer query answered** (from
   `act_query_reviews.peer.submittedAnswerHistory`), self-answers excluded,
   **capped at 200 SP/student**; answers with `peer.review.action` of
-  `rejected`/`marked_unworthy` earn nothing. `category:'query'`.
+  `rejected`/`marked_unworthy` earn nothing; from 22 Aug 2026 an admin review
+  verdict also applies a forward-only penalty (−10 rejected / −5 unworthy, capped
+  at −200 per student). `category:'query'`.
+- **Project:** one-time **+500** when the mentor review of the project PR is
+  completed (`act_pr_reviews`). `category:'project'`.
+- **Daily FAQ quiz (server rubric, 15 Sep 2026):** 5/5 → +10, 4/5 → +5, 2–3 → 0,
+  0–1 → −7, negatives clamped so no balance goes below zero; broken-key questions
+  count as correct. `category:'quiz'`.
 - **Grace day 2026-06-06:** 1-min join = full attendance + full poll.
 - **Chat / discretionary:** legacy ChatSPReview flow; **dormant** (`chatrecords`
   empty, no chat SP awarded).
@@ -269,15 +278,13 @@ overlap, and nobody's card is revoked when they are overtaken.
 
 Flipping any of them is a `.env` edit + PM2 restart — no rebuild, no redeploy.
 
-## Legacy scripts (`server/scripts/`, superseded by `pipeline/`)
+## Legacy scripts — removed
 
-`ingestSession.js`, `rebuild.js`, `syncStudents.js`, `seed.js`, `ingestChat.js`,
-`split22MaySessions.js` are the original CSV-based ±5 pipeline. They remain only
-because `server/server.js` and a few of them still import
-`server/scripts/lib/ingestion.js` (`recalculateStudentSp`). Do not run them for
-scoring — the `pipeline/` rubric is authoritative. The old Zoom ±5 ingest
-(`ingest-zoom-session.js`, `lib/ingestZoomCollections.js`, `lib/ingestZoomLib.js`,
-`run-zoom-ingest.sh`) has been deleted.
+The CSV-based ±5 ingestion (`server/scripts/ingestSession.js`, `rebuild.js`,
+`syncStudents.js`, `addStudents.js`, `seed.js`, `lib/ingestion.js`) and the
+static `public/` admin page were deleted on 18 Sep 2026; nothing live imported
+them. They remain in git history. `npm run seed` now loads throwaway demo data
+(`server/seed-demo-local.mjs`).
 
 ## Admin Endpoints
 - `GET /api/leaderboard` — SP rankings

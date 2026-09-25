@@ -135,13 +135,38 @@ const E2_ASSIGN_CSV = process.env.E2_ASSIGN_CSV || `${process.env.HOME}/spurti/e
 const E2_START_ENV = process.env.E2_START || '';
 const E2_DAYS_ENV = Number(process.env.E2_DAYS || 7);
 
+// ── Daily FAQ quiz → SP (banded correctness; announced 15 Sep 2026) ──────────
+// Source: act_faq_quiz_attempts (6-hourly mirror of the Samagama daily quiz).
+// Score ONLY status='completed' rows: the mirror also logs one 'missed_window'
+// row per enrolled student per missed mandatory day (~2k/day) plus 'in_progress'
+// attempts — neither earns nor costs anything (a miss must NEVER hit the -7 band).
+// Bands on the day's 5 questions: 5 correct -> +10, 4 -> +5, 2-3 -> 0, 0-1 -> -7.
+// The -7 sits where blind-clicking lives (a pure guesser on 4-option MCQs nets
+// ~1.25 correct); at the observed 52-60% correctness a typical honest attempt
+// lands at 2-3 and is safe. Verified EV per attempt ~0 on the real distribution.
+// Broken-key credit mechanism, currently EMPTY (15 Sep, Harshdeep's key audit):
+// the suspected zero-correct qids turned out fine — the rejoin-limit question's
+// key matches FAQ §6.6 exactly (nobody ever picks the right option: comprehension
+// gap, a signal to keep, NOT a key fault); the other zero-correct qids are
+// superseded and never served. Add a qid here ONLY for a Samagama-confirmed bad
+// key, and treat the list as append-only once populated (every rebuild re-scores
+// ALL history, so a later removal would retro-score attempts made under the
+// then-broken key).
+const QUIZ_SP_START = process.env.QUIZ_SP_START || '2026-09-15';
+const QUIZ_BAND = (n) => (n >= 5 ? 10 : n === 4 ? 5 : n >= 2 ? 0 : -7);
+const QUIZ_BROKEN_QIDS = new Set([]);
+
 // ── Certificate-locked students ──────────────────────────────────────────────
 // Their certificate is fully processed and issued — printed numbers must never
 // move. They keep the exact rule-set in force at print time: no 'project'
 // category, SPA teach at the legacy 8×30. Everyone still in the signing queue
 // gets the new rules and a regenerated certificate.
 // 2026-09-05: Yaradla Yaswanth Reddy (the only fully-processed certificate).
-const CERT_LOCKED = new Set(['yaswanthreddythb@gmail.com']);
+// Students whose certificate is already printed: the scorer skips them so the
+// printed numbers never drift. Comma-separated emails in .env (CERT_LOCKED_EMAILS);
+// never hardcode an address here — this file is public.
+const CERT_LOCKED = new Set(String(process.env.CERT_LOCKED_EMAILS || '')
+  .split(',').map(e => e.trim().toLowerCase()).filter(Boolean));
 const SPA_TEACH_UNIT_LEGACY = 8, SPA_TEACH_CAP_LEGACY = 30;
 
 // ── Query answering → SP (Pattern A: rubric-recomputed) ──────────────────────
@@ -496,6 +521,27 @@ const dayLabel = (topic) => { const m = String(topic).match(/Day\s+([IVXLC0-9]+)
     } catch (e) { console.error('E2 goal-card scan skipped:', e.message); }
   }
 
+  // 3e3. Daily FAQ quiz → per-canon completed attempts since QUIZ_SP_START.
+  //      One row per (student, quiz day); duplicate same-day docs keep the best
+  //      effective score. n = correct + broken-key-credited; x = credited count.
+  const quizByCanon = new Map(); // canon -> Map(quizDate -> { n, x })
+  for (const a of await sak.collection('act_faq_quiz_attempts').find(
+        { status: 'completed', quizDate: { $gte: QUIZ_SP_START } },
+        { projection: { email: 1, quizDate: 1, score: 1, questions: 1 } }).toArray()) {
+    const e = String(a.email || '').toLowerCase().trim(); if (!e || !a.quizDate) continue;
+    const c = canonOf(e);
+    let n = 0, x = 0;
+    if (Array.isArray(a.questions) && a.questions.length) {
+      for (const q of a.questions) {
+        if (q.correct) n++;
+        else if (QUIZ_BROKEN_QIDS.has(String(q.qid))) { n++; x++; }
+      }
+    } else n = Number(a.score) || 0; // defensive: mirror docs all carry questions[]
+    let m = quizByCanon.get(c); if (!m) { m = new Map(); quizByCanon.set(c, m); }
+    const prev = m.get(a.quizDate);
+    if (!prev || n > prev.n) m.set(a.quizDate, { n, x });
+  }
+
   // 3f. PRESERVED rows (manual/peer_faq) — read BEFORE the wipe and fold into each
   //     student's ledger so commitment/admin SP survives the rebuild. Re-created with
   //     the same delta/date/reason (metadata like original createdAt is not retained).
@@ -603,6 +649,30 @@ const dayLabel = (topic) => { const m = String(topic).match(/Day\s+([IVXLC0-9]+)
     }
     // Preserved rows (manual commitment/admin SP + peer_faq) — fold in so they survive the wipe.
     for (const p of (preservedByCanon.get(cand) || [])) rows.push(p);
+    // Daily-quiz rows (from 15 Sep 2026): one 'quiz' row per quiz day, banded on
+    // effective correct count (broken-key questions credited). A negative band is
+    // clamped to the balance actually held by that date — same lesson as the SPA
+    // and query penalties: the running balance must never dip below zero.
+    // CERT_LOCKED students keep their issued numbers. Zero-band rows (2-3 correct)
+    // ARE written so the SP Bank shows the student why the day paid nothing.
+    const quiz = quizByCanon.get(cand);
+    if (quiz && !CERT_LOCKED.has(cand)) {
+      let quizPensUsed = 0;
+      for (const d of [...quiz.keys()].sort()) {
+        if (d < info.start) continue;
+        const { n, x } = quiz.get(d);
+        let delta = QUIZ_BAND(n);
+        const note = x ? ` (${x} question${x === 1 ? '' : 's'} with a known broken answer key credited)` : '';
+        if (delta < 0) {
+          const heldByD = rows.reduce((a, r) => a + (r.date <= d ? r.delta : 0), 0) - quizPensUsed;
+          delta = -Math.min(-delta, Math.max(0, heldByD));
+          if (delta === 0) continue; // nothing to take — no row
+          quizPensUsed += -delta;
+        }
+        rows.push({ date: d, order: 8, cat: 'quiz', delta,
+          reason: `Daily quiz (${ddmon(d)}): ${n} of 5 correct${note} -> ${delta > 0 ? '+' : ''}${delta} SP.` });
+      }
+    }
     // Query-answer penalties (rule announced 21 Aug 2026, forward-only): one 'query'
     // row per verdict day, dated to the VERDICT (stable across rebuilds, like the SPA
     // penalty). Capped at QUERY_PEN_CAP per student and clamped so the penalty can
