@@ -912,3 +912,44 @@ html[data-ui-theme='dark'] body { background: #121729; }
 .ui-app[data-theme='dark'] tr.step-alert { background: rgba(241, 123, 123, 0.12); }
 .ui-app[data-theme='dark'] .verify-ok { color: #6ee7b7; border-color: #6ee7b7; }
 .ui-app[data-theme='dark'] .verify-bad { color: #fca5a5; border-color: #fca5a5; }
+
+/* ══ Light hero — "dawn" ═════════════════════════════════════════════════════════
+   The dark theme's hero is dusk (deep navy). In light mode it is the same sky at
+   dawn: pale blue rising into a warm sunrise glow, navy ink, gold for the level ring. */
+.ui-app[data-theme='light'] .ui-hero {
+  color: #14213d;
+  background:
+    radial-gradient(30rem 15rem at 8% -12%, rgba(255, 255, 255, 0.95), transparent 62%),
+    radial-gradient(34rem 20rem at 98% 112%, rgba(255, 184, 96, 0.5), transparent 64%),
+    linear-gradient(128deg, #e4efff 0%, #d0e2fa 52%, #f8e8d2 100%);
+  box-shadow: 0 30px 60px -34px rgba(44, 74, 138, 0.5), 0 2px 6px rgba(20, 33, 61, 0.08), inset 0 0 0 1px rgba(44, 74, 138, 0.12);
+}
+.ui-app[data-theme='light'] .ui-hero-glow { opacity: 0.4; }
+.ui-app[data-theme='light'] .ui-hero.ui-spot::after { background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.55), transparent 65%); }
+.ui-app[data-theme='light'] .ui-hero .ui-eyebrow { color: #1e3a6e; }
+.ui-app[data-theme='light'] .ui-hero .ui-eyebrow.soft { color: rgba(30, 58, 110, 0.75); }
+.ui-app[data-theme='light'] .ui-hero .ui-ghost { color: #1e3a6e; background: rgba(255, 255, 255, 0.65); border-color: rgba(30, 58, 110, 0.25); }
+.ui-app[data-theme='light'] .ui-hero .ui-ghost:hover { background: #fff; }
+.ui-app[data-theme='light'] .ui-hero .ui-greet { color: rgba(20, 33, 61, 0.72); }
+.ui-app[data-theme='light'] .ui-hero .ui-name { color: #14213d; }
+.ui-app[data-theme='light'] .ui-hero .ui-chip { color: #1e3a6e; background: rgba(255, 255, 255, 0.72); border-color: rgba(30, 58, 110, 0.16); }
+.ui-app[data-theme='light'] .ui-hero .ui-chip.flame { color: #fff; background: linear-gradient(135deg, #fb923c, #f43f5e); border-color: transparent; }
+.ui-app[data-theme='light'] .ui-hero .ui-chip.gold { color: #5b3a00; background: linear-gradient(135deg, #fde68a, #f59e0b); border-color: transparent; }
+.ui-app[data-theme='light'] .ui-hero .ui-hero-sp .ui-sp-num { color: #14213d; background: linear-gradient(180deg, #14213d 25%, #2c4a8a 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 8px 16px rgba(44, 74, 138, 0.18)); }
+.ui-app[data-theme='light'] .ui-hero .ui-kicker { color: rgba(20, 33, 61, 0.65); }
+.ui-app[data-theme='light'] .ui-hero .ui-ring-track { stroke: rgba(30, 58, 110, 0.13); }
+.ui-app[data-theme='light'] .ui-hero .ui-ring-center { color: #14213d; }
+.ui-app[data-theme='light'] .ui-hero .ui-ring stop:first-child { stop-color: #c98a2b; }
+.ui-app[data-theme='light'] .ui-hero .ui-ring stop:last-child { stop-color: #f0b94f; }
+.ui-app[data-theme='light'] .ui-hero .ui-lv-note { color: rgba(20, 33, 61, 0.78); }
+.ui-app[data-theme='light'] .ui-hero .ui-seg { background: rgba(30, 58, 110, 0.13); }
+.ui-app[data-theme='light'] .ui-hero .ui-marker b { background: #1e3a6e; color: #fff; box-shadow: 0 8px 18px -8px rgba(20, 33, 61, 0.55); }
+.ui-app[data-theme='light'] .ui-hero .ui-marker b::after { background: #1e3a6e; }
+.ui-app[data-theme='light'] .ui-hero .ui-ladder-labels { color: rgba(20, 33, 61, 0.62); }
+.ui-app[data-theme='light'] .ui-hero .ui-ladder-labels .cur { color: #14213d; }
+.ui-app[data-theme='light'] .ui-hero .ui-note { color: rgba(20, 33, 61, 0.7); }
+.ui-app[data-theme='light'] .ui-hero .ui-group { color: rgba(20, 33, 61, 0.78); background: rgba(255, 255, 255, 0.68); border-color: rgba(30, 58, 110, 0.2); }
+.ui-app[data-theme='light'] .ui-hero .ui-group b { color: #14213d; }
+.ui-app[data-theme='light'] .ui-theme.on-hero { color: #1e3a6e; background: rgba(255, 255, 255, 0.7); border-color: rgba(30, 58, 110, 0.25); }
+.ui-app[data-theme='light'] .ui-theme.on-hero:hover { color: #14213d; background: #fff; }
+.ui-app[data-theme='light'] .ui-hero .ui-gain { box-shadow: 0 16px 32px -18px rgba(44, 74, 138, 0.55), 0 0 0 1px rgba(30, 58, 110, 0.12); }
