@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeStreak } from '../server/services/streaks.js';
+import { computeStreak, orderSessionLabels } from '../server/services/streaks.js';
 
 const row = (sessionLabel, attendedMinutes) => ({ sessionLabel, attendedMinutes });
 
@@ -63,5 +63,36 @@ describe('computeStreak', () => {
     // Session collection must not distort the count.
     const rows = [row('S1', 60), row('GHOST', 60), row('S2', 60)];
     assert.deepEqual(computeStreak(rows, ['S1', 'S2']), { current: 2, longest: 2 });
+  });
+});
+
+describe('orderSessionLabels', () => {
+  const tx = (sessionLabel, dateTime) => ({ sessionLabel, dateTime });
+
+  test('orders by date, not by input order; works for sessions after May', () => {
+    const txns = [tx('Standup (3 Jul)', '2026-07-03T09:00:00Z'), tx('Standup (27 May)', '2026-05-27T09:00:00Z'), tx('Standup (1 Jul)', '2026-07-01T09:00:00Z')];
+    assert.deepEqual(orderSessionLabels(txns), ['Standup (27 May)', 'Standup (1 Jul)', 'Standup (3 Jul)']);
+  });
+
+  test('same-day sessions are split morning < afternoon < evening', () => {
+    const d = '2026-05-20T09:00:00Z';
+    const txns = [tx('20 May Evening', d), tx('20 May Morning', d), tx('20 May Afternoon', d)];
+    assert.deepEqual(orderSessionLabels(txns), ['20 May Morning', '20 May Afternoon', '20 May Evening']);
+  });
+
+  test('a label seen twice keeps its earliest date and appears once', () => {
+    const txns = [tx('A', '2026-06-02T09:00:00Z'), tx('B', '2026-06-01T09:00:00Z'), tx('A', '2026-05-30T09:00:00Z')];
+    assert.deepEqual(orderSessionLabels(txns), ['A', 'B']);
+  });
+
+  test('junk rows are ignored, nothing throws', () => {
+    assert.deepEqual(orderSessionLabels(null), []);
+    assert.deepEqual(orderSessionLabels([null, {}, tx('', '2026-06-01'), tx('X', 'not-a-date'), tx('Y', null)]), []);
+  });
+
+  test('end to end: a June streak is not frozen at May', () => {
+    const txns = [tx('May-1', '2026-05-27T09:00:00Z'), tx('Jun-1', '2026-06-10T09:00:00Z'), tx('Jun-2', '2026-06-11T09:00:00Z')];
+    const rows = [row('May-1', 60), row('Jun-1', 60), row('Jun-2', 60)];
+    assert.deepEqual(computeStreak(rows, orderSessionLabels(txns)), { current: 3, longest: 3 });
   });
 });
