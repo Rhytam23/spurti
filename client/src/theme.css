@@ -868,3 +868,10 @@ html[data-ui-theme='dark'] body { background: #121729; }
 .ui-app[data-theme='dark'] .ui-sw-opt:hover { color: #fff; }
 .ui-app[data-theme='dark'] .ui-hero { box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.07); }
 .ui-app[data-theme='dark'] .ui-avatar { box-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.6), inset 0 0 0 2px rgba(255, 255, 255, 0.35); }
+
+/* theme toggle: in the hero while the hero is on screen, in the pinned header after that */
+.ui-hero-tools { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.ui-theme.on-hero { width: 36px; height: 36px; color: #fff; background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.3); }
+.ui-theme.on-hero:hover { background: rgba(255, 255, 255, 0.24); color: #fff; }
+.ui-nav:not(.is-pinned) .ui-theme.in-nav { display: none; }
+@media (max-width: 520px) { .ui-hero-tools { flex-wrap: wrap; justify-content: flex-end; } }

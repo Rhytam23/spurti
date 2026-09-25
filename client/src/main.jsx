@@ -349,7 +349,7 @@ function StudentView({ profile, onBack, surveyBlocking = false }) {
     <div className="ui-app" data-theme={theme}>
       <ToastHost />
       <main className="ui-page">
-        <Hero heroRef={heroRef} profile={profile} onBack={onBack} streak={streak} cel={cel} dismiss={dismiss} anchorRef={anchorRef} />
+        <Hero themeToggle={<ThemeToggle theme={theme} toggle={toggleTheme} className="on-hero" />} heroRef={heroRef} profile={profile} onBack={onBack} streak={streak} cel={cel} dismiss={dismiss} anchorRef={anchorRef} />
         <Announcements student={student} />
         {/* Milestones are settled on read, so a card can come into existence during
             the very page load the student is looking at. Nothing else on the page
@@ -394,7 +394,7 @@ function celebrationText(cel) {
   return { icon: 'spark', big: `+${cel.delta} SP`, small: 'since your last visit' };
 }
 
-function Hero({ heroRef, profile, onBack, streak, cel, dismiss, anchorRef }) {
+function Hero({ heroRef, profile, onBack, streak, cel, dismiss, anchorRef, themeToggle = null }) {
   const { student } = profile;
   const lv = levelProgress(student.highestSpEver);
   const league = student.trophyLeague;
@@ -409,9 +409,12 @@ function Hero({ heroRef, profile, onBack, streak, cel, dismiss, anchorRef }) {
         {onBack
           ? <button type="button" className="ui-ghost" onClick={onBack}><Icon name="arrowLeft" size={16} /> Back</button>
           : <span className="ui-eyebrow"><i className="ui-brand-dot" /> Spurti · Student bank</span>}
-        <span className={`ui-group ${student.leaderboardGroupLabel ? '' : 'none'}`} title="Your biweekly onboarding cohort">
-          <Icon name="users" size={15} /> Onboarding group <b>{student.leaderboardGroupLabel || 'not assigned yet'}</b>
-        </span>
+        <div className="ui-hero-tools">
+          <span className={`ui-group ${student.leaderboardGroupLabel ? '' : 'none'}`} title="Your biweekly onboarding cohort">
+            <Icon name="users" size={15} /> Onboarding group <b>{student.leaderboardGroupLabel || 'not assigned yet'}</b>
+          </span>
+          {themeToggle}
+        </div>
       </div>
       <div className="ui-hero-grid">
         <div className="ui-hero-id">
