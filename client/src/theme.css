@@ -178,13 +178,13 @@
 
 .ui-gain {
   position: relative; display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 16px; padding: 12px 16px;
-  border: 0; border-radius: 18px; text-align: left; cursor: pointer; color: var(--ui-ink);
+  border: 0; border-radius: 18px; text-align: left; cursor: pointer; color: #14213d;
   background: rgba(255, 255, 255, 0.96); box-shadow: 0 20px 40px -20px rgba(15, 23, 74, 0.6);
   animation: ui-pop 0.7s cubic-bezier(0.2, 1.3, 0.4, 1) both;
 }
 .ui-gain > span:nth-child(2) { display: grid; gap: 1px; flex: 1; }
 .ui-gain strong { font-size: 17px; font-weight: 800; }
-.ui-gain em { font-style: normal; font-size: 13px; color: var(--ui-muted); }
+.ui-gain em { font-style: normal; font-size: 13px; color: #5a6a85; }
 .ui-gain-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 14px; color: #fff; background: var(--ui-grad); }
 
 /* league ladder */
@@ -200,7 +200,7 @@
 .ui-seg.tier-legend { --tc: linear-gradient(90deg, #7c3aed, #f0abfc); }
 .ui-marker { position: absolute; top: -34px; transform: translateX(-50%); animation: ui-slide 1.2s 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .ui-marker b {
-  display: inline-block; position: relative; padding: 3px 10px; border-radius: 999px; background: #fff; color: var(--ui-ink);
+  display: inline-block; position: relative; padding: 3px 10px; border-radius: 999px; background: #fff; color: #14213d;
   font-size: 12px; font-weight: 800; box-shadow: 0 8px 18px -8px rgba(15, 23, 74, 0.6);
 }
 .ui-marker b::after { content: ''; position: absolute; left: 50%; bottom: -4px; width: 8px; height: 8px; background: #fff; transform: translateX(-50%) rotate(45deg); border-radius: 2px; }
@@ -875,3 +875,40 @@ html[data-ui-theme='dark'] body { background: #121729; }
 .ui-theme.on-hero:hover { background: rgba(255, 255, 255, 0.24); color: #fff; }
 .ui-nav:not(.is-pinned) .ui-theme.in-nav { display: none; }
 @media (max-width: 520px) { .ui-hero-tools { flex-wrap: wrap; justify-content: flex-end; } }
+
+/* ── Dark: older components (Commitments, goal modal, share popup) that hard-code light colours ── */
+.ui-app[data-theme='dark'] .cat-initial { --cc: #8fb0ff; }
+.ui-app[data-theme='dark'] .vg-step,
+.ui-app[data-theme='dark'] .vg-tile,
+.ui-app[data-theme='dark'] .ach-stats > div,
+.ui-app[data-theme='dark'] .vg-readout .r { background: var(--ui-tint); }
+.ui-app[data-theme='dark'] .vg-step .n,
+.ui-app[data-theme='dark'] .vg-progress,
+.ui-app[data-theme='dark'] .jr-progress { background: rgba(255, 255, 255, 0.12); }
+.ui-app[data-theme='dark'] .vg-step.done,
+.ui-app[data-theme='dark'] .vg-tile.done { background: rgba(70, 199, 154, 0.14); border-color: rgba(70, 199, 154, 0.4); }
+.ui-app[data-theme='dark'] .vg-pill.green { background: rgba(70, 199, 154, 0.16); }
+.ui-app[data-theme='dark'] .vg-pill.amber,
+.ui-app[data-theme='dark'] .jr-pill.amber { background: rgba(226, 171, 79, 0.18); }
+.ui-app[data-theme='dark'] .vg-field label { color: var(--ui-ink-2); }
+.ui-app[data-theme='dark'] .vg-field input,
+.ui-app[data-theme='dark'] .vg-mult button { background: var(--ui-tint); color: var(--ui-ink); }
+.ui-app[data-theme='dark'] .vg-mult button.active { background: var(--primary); color: #0f1530; }
+.ui-app[data-theme='dark'] .vg-lock { background: rgba(134, 166, 247, 0.12); }
+.ui-app[data-theme='dark'] .vg-bet { background: var(--ui-solid); }
+.ui-app[data-theme='dark'] .jr-n { background: var(--ui-ink); color: #121729; }
+.ui-app[data-theme='dark'] .jr-soon,
+.ui-app[data-theme='dark'] .jr-pill.muted,
+.ui-app[data-theme='dark'] .cm-tag { background: rgba(255, 255, 255, 0.1); }
+.ui-app[data-theme='dark'] .jr-dot.done { background: rgba(139, 92, 246, 0.25); }
+.ui-app[data-theme='dark'] .jr-dot.current { background: rgba(139, 92, 246, 0.16); }
+.ui-app[data-theme='dark'] .cm-subtab { background: var(--ui-tint); color: var(--ui-ink-2); }
+.ui-app[data-theme='dark'] .cm-subtab.active { background: var(--ui-grad); color: #fff; }
+.ui-app[data-theme='dark'] .cm-acc { background: var(--ui-solid); }
+.ui-app[data-theme='dark'] .post-howto { border-color: var(--ui-line); background: var(--ui-tint); }
+.ui-app[data-theme='dark'] .post-howto li { color: var(--ui-ink-2); }
+.ui-app[data-theme='dark'] .post-howto .ack { color: var(--ui-ink); }
+.ui-app[data-theme='dark'] .post-howto b { color: var(--ui-ink); }
+.ui-app[data-theme='dark'] tr.step-alert { background: rgba(241, 123, 123, 0.12); }
+.ui-app[data-theme='dark'] .verify-ok { color: #6ee7b7; border-color: #6ee7b7; }
+.ui-app[data-theme='dark'] .verify-bad { color: #fca5a5; border-color: #fca5a5; }
