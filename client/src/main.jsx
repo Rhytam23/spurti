@@ -14,6 +14,25 @@ import {
 const APP_BASE = window.location.pathname.startsWith('/spurti') ? '/spurti' : '';
 const API = `${APP_BASE}/api`;
 
+// "I'm here" ping. Every open tab sends one, so at cohort scale its cost is the
+// number of tabs times how often they fire. About once a minute, spread with random
+// jitter so tens of thousands of tabs don't all fire on the same second, and only
+// while the tab is actually visible — a forgotten background tab sends nothing.
+// Coming back to the tab pings straight away (at most every 20s) so presence is fresh.
+function startPresencePing(send) {
+  let timer = null;
+  let lastSent = 0;
+  const fire = () => { lastSent = Date.now(); send(); };
+  const schedule = () => {
+    timer = setTimeout(() => { if (!document.hidden) fire(); schedule(); }, 55000 + Math.random() * 10000);
+  };
+  const onVisible = () => { if (!document.hidden && Date.now() - lastSent > 20000) fire(); };
+  fire();
+  schedule();
+  document.addEventListener('visibilitychange', onVisible);
+  return () => { clearTimeout(timer); document.removeEventListener('visibilitychange', onVisible); };
+}
+
 // /spurti/verify/SPRT-XXXX-XXXX is a public page — the QR on a shared card
 // resolves here, and it must render for someone who has never logged in.
 const VERIFY_CODE = (window.location.pathname.match(/\/verify\/([A-Za-z0-9-]+)\/?$/) || [])[1] || null;
@@ -44,9 +63,7 @@ function AppShell() {
         recordViewed: profile.student.email
       })
     }).catch(() => {});
-    send();
-    const id = setInterval(send, 30000);
-    return () => clearInterval(id);
+    return startPresencePing(send);
   }, [profile]);
 
   useEffect(() => {
@@ -1690,7 +1707,7 @@ function MyJourney({ student, goToCommitment, canCommit = false, attendance = []
 
       <div className="ui-grid-2">
         {/* Standups — continuous, no completion goal; commitment only */}
-        <TrackCard track="standup" tone={tones.standup} expected={exp.standup} n={1} title="Standups" pct={pcts.standup} sp={`+${standups.sp} SP`} sub="Zoom attendance + Spandan polls">
+        <TrackCard track="standup" tone={tones.standup} expected={exp.standup} n={1} title="Standups" pct={pcts.standup} sp={`${standups.sp >= 0 ? '+' : ''}${standups.sp} SP`} spNeg={standups.sp < 0} sub="Zoom attendance + Spandan polls">
           <div className="ui-stats">
             <Stat icon="clock" value={standups.zoomMinutes} label="Zoom minutes" />
             <Stat icon="calendar" value={standups.sessionsAttended} label="sessions attended" />
@@ -1734,7 +1751,7 @@ function MyJourney({ student, goToCommitment, canCommit = false, attendance = []
         </TrackCard>
 
         {/* SPA — live progress from the rubric summary (same source as the SPA Points tab) */}
-        <TrackCard track="spa" tone={tones.spa} expected={exp.spa} n={3} title="SPA — Matrix Mystics" pct={pcts.spa} sp={`+${spa.sp} SP`}
+        <TrackCard track="spa" tone={tones.spa} expected={exp.spa} n={3} title="SPA — Matrix Mystics" pct={pcts.spa} sp={`${spa.sp >= 0 ? '+' : ''}${spa.sp} SP`} spNeg={spa.sp < 0}
           sub={`${spa.solved}/${spa.total} problems solved · full breakdown in the SPA Points tab`}>
           <div className="ui-stats">
             <Stat icon="book" value={spa.solved} label="problems solved" />
@@ -1744,7 +1761,7 @@ function MyJourney({ student, goToCommitment, canCommit = false, attendance = []
         </TrackCard>
 
         {/* Projects — live from the PR submission + review mirrors; SP rule still TBD */}
-        <TrackCard track="project" tone={tones.project} expected={exp.project} n={4} title="Projects" pct={pcts.project} sp={`+${projects.sp} SP`}
+        <TrackCard track="project" tone={tones.project} expected={exp.project} n={4} title="Projects" pct={pcts.project} sp={`${projects.sp >= 0 ? '+' : ''}${projects.sp} SP`} spNeg={projects.sp < 0}
           sub={projects.submitted ? `${projects.prsRaised} PR${projects.prsRaised === 1 ? '' : 's'} submitted` : 'Pull requests — none submitted yet'}>
           {projects.reviewStatus && <div className="ui-pills"><span className="ui-pill">Review: {projects.reviewStatus}</span></div>}
           <PhaseGoal phaseKey="project" tone={tones.project} field="projectBy" goal={goals.project} targetText="raise your first PR" {...gp} />
