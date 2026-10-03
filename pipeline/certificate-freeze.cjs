@@ -11,9 +11,12 @@
  *   minutes        Σ attended minutes parsed from the dated attendance ledger
  *                  rows ("present X of Y min") — UNCAPPED, prints in full
  *   rawSp          Σ ledger appliedDelta to the cut — the "count" number
- *   cappedSp       per-category contribution clipped at the certificate caps
- *                  (initial 100, att 600, poll 600, spa 500, query 200,
- *                  project 500) -> level = floor(cappedSp/100), shown "X/25"
+ *   cappedSp       the certificate SP. Since 2026-10-03 (spRule 'uncapped-v2')
+ *                  it equals rawSp: every category counts in full up to the
+ *                  cut and penalties are subtracted. The field keeps its old
+ *                  name because Samagama's generator prints it. Rows frozen
+ *                  before that used per-category caps (att/poll 600 ...).
+ *                  level = floor(cappedSp/100), never above 25, shown "X/25"
  *   league         trophy-league band (same bands as the live app) on rawSp
  *   spaCompletedAt derived: timestamp of the 50th validated learn endorsement
  *                  (Samagama sends null; user ruling 2026-09-05)
@@ -34,6 +37,11 @@
  * and vibeFallbackUsed for audit. Students with any phase underivable are
  * skipped with a reason.
  *
+ * PROJECT WAIT (added 2026-10-03): when the project review is completed but
+ * the +500 project row is not in the ledger yet (the review lands in the
+ * mirror after the last sp-refresh), the student is skipped and frozen on a
+ * later run. Before this, 8 students were frozen without their project SP.
+ *
  * CRON-SAFE: insert-only + idempotent; meant to run 6-hourly after the
  * activity mirror so newly-completed students freeze automatically.
  * Samagama reads certificate_finals verbatim for certificate generation.
@@ -51,7 +59,8 @@ for (const line of fs.readFileSync(ENV_FILE, 'utf8').split('\n')) {
 }
 const APPLY = process.env.APPLY === '1';
 
-const CAPS = { initial: 100, attendance: 600, poll: 600, spa: 500, query: 200, project: 500 };
+const SP_RULE = 'uncapped-v2'; // no category caps, penalties subtracted (2026-10-03)
+const MAX_LEVEL = 25;
 const CERT_LOCKED = new Set(['yaswanthreddythb@gmail.com']);
 const SPA_GOOD = ['approved', 'audit_passed'];
 const SPA_DONE_COUNT = 50; // spaCompletedAt = when the 50th validated learn landed
@@ -155,9 +164,8 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
       }
     }
     const rawSp = upto.reduce((a, t) => a + (t.appliedDelta || 0), 0);
-    const cappedSp = Object.entries(byCat)
-      .reduce((a, [c, v]) => a + Math.min(Math.max(v, 0), CAPS[c] ?? 0), 0);
-    const level = Math.floor(cappedSp / 100);
+    const cappedSp = rawSp; // uncapped-v2: see header
+    const level = Math.min(MAX_LEVEL, Math.floor(Math.max(cappedSp, 0) / 100));
 
     // spaCompletedAt = 50th validated learn (approvedAt, fallback createdAt)
     const learns = (await sak.collection('act_spa_endorsements').find(
@@ -172,13 +180,18 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
     for (const v of vibeRows)
       vibe[v.courseKey] = v.finished ? 100 : Math.round(v.completionPct || 0);
     const prRev = await sak.collection('act_pr_reviews').findOne({ email });
+    // Project wait: review completed but the +500 not in the ledger yet -> next run.
+    if (prRev?.reviewStatus === 'completed' && !(byCat.project > 0) && !existing.has(email) && !CERT_LOCKED.has(email)) {
+      console.log(`WAIT ${email}: project review completed but project SP not in the ledger yet — will freeze on a later run`);
+      continue;
+    }
 
     rows.push({
       email, name: student.name,
       completedAllAt, completedAllAtSource, vibeFallbackUsed, frozenAt: new Date(),
       certLocked: CERT_LOCKED.has(email),
       minutes, minutesGoalMet: minutes >= MINUTES_GOAL,
-      rawSp, cappedSp, level, levelDisplay: `${level}/25`, league: leagueBand(rawSp),
+      rawSp, cappedSp, spRule: SP_RULE, level, levelDisplay: `${level}/${MAX_LEVEL}`, league: leagueBand(rawSp),
       perCategory: byCat,
       spaLearned: learns.length, spaTaught, spaCompletedAtDerived,
       vibe, projectStatus: prRev?.reviewStatus || null,
