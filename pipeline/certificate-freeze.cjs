@@ -42,6 +42,10 @@
  * mirror after the last sp-refresh), the student is skipped and frozen on a
  * later run. Before this, 8 students were frozen without their project SP.
  *
+ * SIGNED_FINAL / MANUAL (added 2026-10-05): signed certificates are never
+ * re-frozen even if their row is removed; MANUAL adds agreed rows for students
+ * outside the eligibility list (minutes override kept beside ledgerMinutes).
+ *
  * CRON-SAFE: insert-only + idempotent; meant to run 6-hourly after the
  * activity mirror so newly-completed students freeze automatically.
  * Samagama reads certificate_finals verbatim for certificate generation.
@@ -62,6 +66,17 @@ const APPLY = process.env.APPLY === '1';
 const SP_RULE = 'uncapped-v2'; // no category caps, penalties subtracted (2026-10-03)
 const MAX_LEVEL = 25;
 const CERT_LOCKED = new Set(['yaswanthreddythb@gmail.com']);
+// Certificates already SIGNED from the row on file (Harshdeep, 4 Oct 2026): never
+// write these again, even if their row is deleted — the signed copy is final.
+const SIGNED_FINAL = new Set([
+  'kartikkhatri8210@ce.du.ac.in', 'garvarora2611@gmail.com', 'kkp1882006@gmail.com',
+]);
+// Manual rows agreed with Samagama for students outside the eligibility list.
+// `minutes` replaces the ledger sum; SP/level/league still come from the ledger.
+const MANUAL = [
+  { email: 'manyavalechaofficial@gmail.com', completedAllAt: '2026-08-14T02:08:59.579Z', minutes: 4149,
+    note: 'Honours the 14 Aug completion acknowledgement (4,149 min incl. Zoom time outside stand-ups; ledger stand-up minutes 3,558). Agreed by Harshdeep 4 Oct 2026.' },
+];
 const SPA_GOOD = ['approved', 'audit_passed'];
 const SPA_DONE_COUNT = 50; // spaCompletedAt = when the 50th validated learn landed
 const MINUTES_GOAL = 3600;
@@ -90,6 +105,9 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
   // completion; ruling 2026-09-08: the freeze is self-sufficient).
   const elig = await sak.collection('act_certificate_eligibility')
     .find({ eligible: true }).toArray();
+  for (const m of MANUAL)
+    if (!elig.some((e) => String(e.email).toLowerCase().trim() === m.email))
+      elig.push({ email: m.email, completedAllAt: m.completedAllAt, manual: m });
 
   // userId -> email crosswalk (for the unreviewed-query flag), same sources as the rubric.
   const uidToEmail = new Map();
@@ -114,6 +132,7 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
   const rows = [];
   for (const el of elig) {
     const email = String(el.email).toLowerCase().trim();
+    if (SIGNED_FINAL.has(email) && !existing.has(email)) { console.log(`SKIP ${email}: certificate signed — row must not be re-frozen`); continue; }
     const student = await sak.collection('students').findOne({ email });
     if (!student) { console.log(`SKIP ${email}: no students row`); continue; }
 
@@ -122,7 +141,7 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
     // completedAt takes the first date OUR mirror observed it finished — the
     // row's ObjectId timestamp. Earliest provable date; SP is cut there.
     let completedAllAt = el.completedAllAt ? new Date(el.completedAllAt) : null;
-    let completedAllAtSource = completedAllAt ? 'samagama' : null;
+    let completedAllAtSource = completedAllAt ? (el.manual ? 'manual' : 'samagama') : null;
     let vibeFallbackUsed = false;
     const vibeRows = await sak.collection('act_vibe_progress').find({ email }).toArray();
     if (!completedAllAt) {
@@ -163,6 +182,8 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
         if (m) minutes += Number(m[1]);
       }
     }
+    const ledgerMinutes = minutes;
+    if (el.manual) minutes = el.manual.minutes;
     const rawSp = upto.reduce((a, t) => a + (t.appliedDelta || 0), 0);
     const cappedSp = rawSp; // uncapped-v2: see header
     const level = Math.min(MAX_LEVEL, Math.floor(Math.max(cappedSp, 0) / 100));
@@ -191,6 +212,7 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
       completedAllAt, completedAllAtSource, vibeFallbackUsed, frozenAt: new Date(),
       certLocked: CERT_LOCKED.has(email),
       minutes, minutesGoalMet: minutes >= MINUTES_GOAL,
+      ...(el.manual ? { ledgerMinutes, manualNote: el.manual.note } : {}),
       rawSp, cappedSp, spRule: SP_RULE, level, levelDisplay: `${level}/${MAX_LEVEL}`, league: leagueBand(rawSp),
       perCategory: byCat,
       spaLearned: learns.length, spaTaught, spaCompletedAtDerived,
