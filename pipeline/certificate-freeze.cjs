@@ -46,6 +46,10 @@
  * re-frozen even if their row is removed; MANUAL adds agreed rows for students
  * outside the eligibility list (minutes override kept beside ledgerMinutes).
  *
+ * LEDGER_ALIAS (added 2026-10-07): a student who rejoined on a new email keeps
+ * the certificate email from the eligibility list, but SP is read from the
+ * ledger of the account that holds the earned points.
+ *
  * CRON-SAFE: insert-only + idempotent; meant to run 6-hourly after the
  * activity mirror so newly-completed students freeze automatically.
  * Samagama reads certificate_finals verbatim for certificate generation.
@@ -77,6 +81,13 @@ const MANUAL = [
   { email: 'manyavalechaofficial@gmail.com', completedAllAt: '2026-08-14T02:08:59.579Z', minutes: 4149,
     note: 'Honours the 14 Aug completion acknowledgement (4,149 min incl. Zoom time outside stand-ups; ledger stand-up minutes 3,558). Agreed by Harshdeep 4 Oct 2026.' },
 ];
+// Certificate email -> email whose SP ledger is used. Rohith N R rejoined on
+// notrohith444 (2 Jul) after notrohith44 was excused; Harshdeep confirmed same
+// person 6 Oct 2026. Activity + eligibility are on 444, SPA/project/quiz SP on 44
+// (attendance/polls are duplicated on both, so only one ledger may be read).
+const LEDGER_ALIAS = {
+  'notrohith444@gmail.com': 'notrohith44@gmail.com',
+};
 const SPA_GOOD = ['approved', 'audit_passed'];
 const SPA_DONE_COUNT = 50; // spaCompletedAt = when the 50th validated learn landed
 const MINUTES_GOAL = 3600;
@@ -171,7 +182,8 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
     }
     const cutDay = dstr(completedAllAt);
 
-    const txns = await sak.collection('sptransactions').find({ email }).toArray();
+    const ledgerEmail = LEDGER_ALIAS[email] || email;
+    const txns = await sak.collection('sptransactions').find({ email: ledgerEmail }).toArray();
     const upto = txns.filter((t) => dstr(t.dateTime) <= cutDay);
     const byCat = {};
     let minutes = 0;
@@ -213,11 +225,12 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
       certLocked: CERT_LOCKED.has(email),
       minutes, minutesGoalMet: minutes >= MINUTES_GOAL,
       ...(el.manual ? { ledgerMinutes, manualNote: el.manual.note } : {}),
+      ...(ledgerEmail !== email ? { ledgerEmail } : {}),
       rawSp, cappedSp, spRule: SP_RULE, level, levelDisplay: `${level}/${MAX_LEVEL}`, league: leagueBand(rawSp),
       perCategory: byCat,
       spaLearned: learns.length, spaTaught, spaCompletedAtDerived,
       vibe, projectStatus: prRev?.reviewStatus || null,
-      queryUnreviewedCount: unreviewedByEmail.get(email) || 0,
+      queryUnreviewedCount: (unreviewedByEmail.get(email) || 0) + (ledgerEmail !== email ? (unreviewedByEmail.get(ledgerEmail) || 0) : 0),
       ledgerRowsAtCut: upto.length,
       alreadyFrozen: existing.has(email),
     });
