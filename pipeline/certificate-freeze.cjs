@@ -11,9 +11,12 @@
  *   minutes        Σ attended minutes parsed from the dated attendance ledger
  *                  rows ("present X of Y min") — UNCAPPED, prints in full
  *   rawSp          Σ ledger appliedDelta to the cut — the "count" number
- *   cappedSp       per-category contribution clipped at the certificate caps
- *                  (initial 100, att 600, poll 600, spa 500, query 200,
- *                  project 500) -> level = floor(cappedSp/100), shown "X/25"
+ *   cappedSp       the certificate SP. Since 2026-10-03 (spRule 'uncapped-v2')
+ *                  it equals rawSp: every category counts in full up to the
+ *                  cut and penalties are subtracted. The field keeps its old
+ *                  name because Samagama's generator prints it. Rows frozen
+ *                  before that used per-category caps (att/poll 600 ...).
+ *                  level = floor(cappedSp/100), never above 25, shown "X/25"
  *   league         trophy-league band (same bands as the live app) on rawSp
  *   spaCompletedAt derived: timestamp of the 50th validated learn endorsement
  *                  (Samagama sends null; user ruling 2026-09-05)
@@ -34,6 +37,19 @@
  * and vibeFallbackUsed for audit. Students with any phase underivable are
  * skipped with a reason.
  *
+ * PROJECT WAIT (added 2026-10-03): when the project review is completed but
+ * the +500 project row is not in the ledger yet (the review lands in the
+ * mirror after the last sp-refresh), the student is skipped and frozen on a
+ * later run. Before this, 8 students were frozen without their project SP.
+ *
+ * SIGNED_FINAL / MANUAL (added 2026-10-05): signed certificates are never
+ * re-frozen even if their row is removed; MANUAL adds agreed rows for students
+ * outside the eligibility list (minutes override kept beside ledgerMinutes).
+ *
+ * LEDGER_ALIAS (added 2026-10-07): a student who rejoined on a new email keeps
+ * the certificate email from the eligibility list, but SP is read from the
+ * ledger of the account that holds the earned points.
+ *
  * CRON-SAFE: insert-only + idempotent; meant to run 6-hourly after the
  * activity mirror so newly-completed students freeze automatically.
  * Samagama reads certificate_finals verbatim for certificate generation.
@@ -51,8 +67,27 @@ for (const line of fs.readFileSync(ENV_FILE, 'utf8').split('\n')) {
 }
 const APPLY = process.env.APPLY === '1';
 
-const CAPS = { initial: 100, attendance: 600, poll: 600, spa: 500, query: 200, project: 500 };
+const SP_RULE = 'uncapped-v2'; // no category caps, penalties subtracted (2026-10-03)
+const MAX_LEVEL = 25;
 const CERT_LOCKED = new Set(['yaswanthreddythb@gmail.com']);
+// Certificates already SIGNED from the row on file (Harshdeep, 4 Oct 2026): never
+// write these again, even if their row is deleted — the signed copy is final.
+const SIGNED_FINAL = new Set([
+  'kartikkhatri8210@ce.du.ac.in', 'garvarora2611@gmail.com', 'kkp1882006@gmail.com',
+]);
+// Manual rows agreed with Samagama for students outside the eligibility list.
+// `minutes` replaces the ledger sum; SP/level/league still come from the ledger.
+const MANUAL = [
+  { email: 'manyavalechaofficial@gmail.com', completedAllAt: '2026-08-14T02:08:59.579Z', minutes: 4149,
+    note: 'Honours the 14 Aug completion acknowledgement (4,149 min incl. Zoom time outside stand-ups; ledger stand-up minutes 3,558). Agreed by Harshdeep 4 Oct 2026.' },
+];
+// Certificate email -> email whose SP ledger is used. Rohith N R rejoined on
+// notrohith444 (2 Jul) after notrohith44 was excused; Harshdeep confirmed same
+// person 6 Oct 2026. Activity + eligibility are on 444, SPA/project/quiz SP on 44
+// (attendance/polls are duplicated on both, so only one ledger may be read).
+const LEDGER_ALIAS = {
+  'notrohith444@gmail.com': 'notrohith44@gmail.com',
+};
 const SPA_GOOD = ['approved', 'audit_passed'];
 const SPA_DONE_COUNT = 50; // spaCompletedAt = when the 50th validated learn landed
 const MINUTES_GOAL = 3600;
@@ -81,6 +116,9 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
   // completion; ruling 2026-09-08: the freeze is self-sufficient).
   const elig = await sak.collection('act_certificate_eligibility')
     .find({ eligible: true }).toArray();
+  for (const m of MANUAL)
+    if (!elig.some((e) => String(e.email).toLowerCase().trim() === m.email))
+      elig.push({ email: m.email, completedAllAt: m.completedAllAt, manual: m });
 
   // userId -> email crosswalk (for the unreviewed-query flag), same sources as the rubric.
   const uidToEmail = new Map();
@@ -105,6 +143,7 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
   const rows = [];
   for (const el of elig) {
     const email = String(el.email).toLowerCase().trim();
+    if (SIGNED_FINAL.has(email) && !existing.has(email)) { console.log(`SKIP ${email}: certificate signed — row must not be re-frozen`); continue; }
     const student = await sak.collection('students').findOne({ email });
     if (!student) { console.log(`SKIP ${email}: no students row`); continue; }
 
@@ -113,7 +152,7 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
     // completedAt takes the first date OUR mirror observed it finished — the
     // row's ObjectId timestamp. Earliest provable date; SP is cut there.
     let completedAllAt = el.completedAllAt ? new Date(el.completedAllAt) : null;
-    let completedAllAtSource = completedAllAt ? 'samagama' : null;
+    let completedAllAtSource = completedAllAt ? (el.manual ? 'manual' : 'samagama') : null;
     let vibeFallbackUsed = false;
     const vibeRows = await sak.collection('act_vibe_progress').find({ email }).toArray();
     if (!completedAllAt) {
@@ -143,7 +182,8 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
     }
     const cutDay = dstr(completedAllAt);
 
-    const txns = await sak.collection('sptransactions').find({ email }).toArray();
+    const ledgerEmail = LEDGER_ALIAS[email] || email;
+    const txns = await sak.collection('sptransactions').find({ email: ledgerEmail }).toArray();
     const upto = txns.filter((t) => dstr(t.dateTime) <= cutDay);
     const byCat = {};
     let minutes = 0;
@@ -154,10 +194,11 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
         if (m) minutes += Number(m[1]);
       }
     }
+    const ledgerMinutes = minutes;
+    if (el.manual) minutes = el.manual.minutes;
     const rawSp = upto.reduce((a, t) => a + (t.appliedDelta || 0), 0);
-    const cappedSp = Object.entries(byCat)
-      .reduce((a, [c, v]) => a + Math.min(Math.max(v, 0), CAPS[c] ?? 0), 0);
-    const level = Math.floor(cappedSp / 100);
+    const cappedSp = rawSp; // uncapped-v2: see header
+    const level = Math.min(MAX_LEVEL, Math.floor(Math.max(cappedSp, 0) / 100));
 
     // spaCompletedAt = 50th validated learn (approvedAt, fallback createdAt)
     const learns = (await sak.collection('act_spa_endorsements').find(
@@ -172,17 +213,24 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
     for (const v of vibeRows)
       vibe[v.courseKey] = v.finished ? 100 : Math.round(v.completionPct || 0);
     const prRev = await sak.collection('act_pr_reviews').findOne({ email });
+    // Project wait: review completed but the +500 not in the ledger yet -> next run.
+    if (prRev?.reviewStatus === 'completed' && !(byCat.project > 0) && !existing.has(email) && !CERT_LOCKED.has(email)) {
+      console.log(`WAIT ${email}: project review completed but project SP not in the ledger yet — will freeze on a later run`);
+      continue;
+    }
 
     rows.push({
       email, name: student.name,
       completedAllAt, completedAllAtSource, vibeFallbackUsed, frozenAt: new Date(),
       certLocked: CERT_LOCKED.has(email),
       minutes, minutesGoalMet: minutes >= MINUTES_GOAL,
-      rawSp, cappedSp, level, levelDisplay: `${level}/25`, league: leagueBand(rawSp),
+      ...(el.manual ? { ledgerMinutes, manualNote: el.manual.note } : {}),
+      ...(ledgerEmail !== email ? { ledgerEmail } : {}),
+      rawSp, cappedSp, spRule: SP_RULE, level, levelDisplay: `${level}/${MAX_LEVEL}`, league: leagueBand(rawSp),
       perCategory: byCat,
       spaLearned: learns.length, spaTaught, spaCompletedAtDerived,
       vibe, projectStatus: prRev?.reviewStatus || null,
-      queryUnreviewedCount: unreviewedByEmail.get(email) || 0,
+      queryUnreviewedCount: (unreviewedByEmail.get(email) || 0) + (ledgerEmail !== email ? (unreviewedByEmail.get(ledgerEmail) || 0) : 0),
       ledgerRowsAtCut: upto.length,
       alreadyFrozen: existing.has(email),
     });
