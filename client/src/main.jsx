@@ -159,6 +159,31 @@ function AppShell() {
   }} />;
 }
 
+function DemoPicker({ onStudent }) {
+  const [rows, setRows] = useState([]);
+  const [q, setQ] = useState('');
+  useEffect(() => { fetch(`${API}/demo/students`).then(r => r.json()).then(setRows).catch(() => {}); }, []);
+  const open = async (id) => {
+    const res = await fetch(`${API}/confirm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId: id }) });
+    if (res.ok) onStudent(await res.json());
+  };
+  const shown = rows.filter(r => r.name.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <div className="demo-picker">
+      <p className="muted">Open any demo student (no login):</p>
+      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Filter students" />
+      <div className="match-list">
+        {shown.map(r => (
+          <button key={r._id} className="match" onClick={() => open(r._id)}>
+            <strong>{r.name}</strong>
+            <span>{r.status === 'excused' ? 'Excused' : `${r.totalSp} SP · Level ${r.level} · ${r.trophyLeague}`}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Landing({ config, onStudent }) {
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -174,7 +199,9 @@ function Landing({ config, onStudent }) {
             <Info title="How to get points" text="Attend eligible sessions and answer polls to keep your engagement visible." />
             <Info title="Motive" text="To make consistency visible and help the cohort build disciplined learning habits." />
           </div>
-          {config.allowStudentSearch ? (
+          {config.demoMode ? (
+            <DemoPicker onStudent={onStudent} />
+          ) : config.allowStudentSearch ? (
             <button className="primary" onClick={() => setSearchOpen(true)}>Find your Spurti points</button>
           ) : (
             <div className="auth-card inline-auth">
@@ -1525,8 +1552,8 @@ const NEXT_NUDGE = { standup: 'Next up: push your ViBe courses.', vibe: 'Next up
 
 const TRACKS = {
   standup: { color: '#3b6fc4', icon: 'users', name: 'Standups' },
-  vibe: { color: '#6f63b8', icon: 'bolt', name: 'ViBe' },
-  spa: { color: '#f59e0b', icon: 'book', name: 'SPA' },
+  vibe: { color: '#f59e0b', icon: 'bolt', name: 'ViBe' },
+  spa: { color: '#6f63b8', icon: 'book', name: 'SPA' },
   project: { color: '#3f8f74', icon: 'target', name: 'Projects' }
 };
 

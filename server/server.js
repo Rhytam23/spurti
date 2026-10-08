@@ -440,10 +440,23 @@ api.get('/health', (_req, res) => {
 
 api.get('/config', (_req, res) => res.json({
   allowStudentSearch: ALLOW_STUDENT_SEARCH,
+  demoMode: DEMO_MODE,
   survey: surveyPublic(SURVEY),
   poll2: surveyPublic(POLL2),
   poll3: surveyPublic(POLL3)
 }));
+
+// ---- Demo mode (DEMO_MODE=1, local only): no login, pick any student -----------
+const DEMO_MODE = process.env.DEMO_MODE === '1' && ALLOW_STUDENT_SEARCH;
+api.get('/demo/students', async (_req, res) => {
+  if (!DEMO_MODE) return res.status(404).json({ error: 'Not found' });
+  const rows = await Student.find().sort({ totalSp: -1, name: 1 }).select('name email status totalSp highestSpEver').lean();
+  res.json(rows.map(s => ({ _id: String(s._id), name: s.name, email: s.email, status: s.status, totalSp: s.totalSp, level: levelFor(Math.max(s.highestSpEver || 0, s.totalSp || 0)), trophyLeague: leagueBand(s.totalSp) })));
+});
+api.get('/demo/teacher', (_req, res) => {
+  if (!DEMO_MODE || !ADMIN_EMAIL || !ADMIN_TOKEN) return res.status(404).json({ error: 'Not found' });
+  res.json({ email: ADMIN_EMAIL, token: ADMIN_TOKEN });
+});
 
 api.get('/me', async (req, res) => {
   const email = await studentEmailFromRequest(req);
@@ -581,7 +594,7 @@ api.post('/confirm', async (req, res) => {
   const typed = normalizeEmail(email);
   const student = await Student.findById(studentId).lean();
   if (!student) return res.status(404).json({ error: 'Student not found' });
-  if (typed !== normalizeEmail(student.email) && typed !== normalizeEmail(student.alternateEmail)) {
+  if (!DEMO_MODE && typed !== normalizeEmail(student.email) && typed !== normalizeEmail(student.alternateEmail)) {
     return res.status(403).json({ error: 'Email did not match this record' });
   }
   if (student.status === 'excused') return res.json(excusedPayload(student));
@@ -589,6 +602,7 @@ api.post('/confirm', async (req, res) => {
 });
 
 api.get('/leaderboard', async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=30');
   const type = String(req.query.leaderboardType || 'overall');
   const filter = { status: { $ne: 'excused' } };
   if (type === 'my_onboarding_group' && req.query.group) filter.leaderboardGroup = String(req.query.group);
@@ -1432,8 +1446,18 @@ async function verifyPageHtml(req, code) {
 }
 
 if (fs.existsSync(clientDist)) {
-  app.use('/spurti', express.static(clientDist, { index: false }));
-  app.use(express.static(clientDist, { index: false }));
+  // Vite fingerprints everything under /assets, so those files can be cached for a
+  // year; index.html (and anything else) must be revalidated so a new build shows up.
+  const staticOpts = {
+    index: false,
+    setHeaders: (res, file) => {
+      res.setHeader('Cache-Control', /[\\/]assets[\\/]/.test(file)
+        ? 'public, max-age=31536000, immutable'
+        : 'no-cache');
+    }
+  };
+  app.use('/spurti', express.static(clientDist, staticOpts));
+  app.use(express.static(clientDist, staticOpts));
   app.get(['/spurti/verify/:code', '/verify/:code'], verifyLimit, async (req, res) => {
     try {
       const { found, html } = await verifyPageHtml(req, req.params.code);
@@ -1460,6 +1484,23 @@ app.use((err, req, res, next) => {
   if (status >= 500) console.error(`[error] ${req.method} ${req.originalUrl}:`, err?.stack || err);
   res.status(status).json({ error: status >= 500 ? 'Something went wrong. Please try again.' : 'Bad request.' });
 });
+
+// Fill the in-process caches once at boot so the first teacher/student to open the
+// dashboard gets a cached answer instead of paying for the cohort-wide queries.
+// Best effort: a failure here only means the first real request loads it instead.
+async function warmCaches() {
+  const t0 = Date.now();
+  const jobs = {
+    cohort: loadCohortStats(),
+    attendance: adminCache.getOrLoad('attendance', ADMIN_TTL_MS, buildAttendanceGrid),
+    analytics: adminCache.getOrLoad('analytics', ADMIN_TTL_MS, buildAnalytics)
+  };
+  const names = Object.keys(jobs);
+  const results = await Promise.allSettled(Object.values(jobs));
+  const ok = names.filter((_, i) => results[i].status === 'fulfilled');
+  console.log(`[cache] warmed ${ok.join(', ') || 'nothing'} in ${Date.now() - t0}ms`);
+  results.forEach((r, i) => { if (r.status === 'rejected') console.warn(`[cache] ${names[i]} not warmed:`, r.reason?.message); });
+}
 
 let server = null;
 let shuttingDown = false;
@@ -1500,6 +1541,7 @@ if (process.env.SPURTI_NO_START !== '1') {
     socketTimeoutMS: 45_000
   }).then(() => {
     server = app.listen(PORT, () => console.log(`Spurti app running at http://localhost:${PORT}/`));
+    warmCaches();
     // Keep-alive longer than nginx's, so a proxied connection is never closed under it.
     server.keepAliveTimeout = 65_000;
     server.headersTimeout = 66_000;
