@@ -114,7 +114,11 @@ export async function buildAchievementState(student) {
     g.items.push(card(a));
   }
 
-  const locked = specs.filter((s) => !s.earned).map((s) => ({
+  // A milestone already minted stays earned even if the live figure later falls
+  // below the bar (attendance minutes were corrected on 12 Oct 2026 and 71
+  // students dropped under 3,600). Never show a held badge as locked.
+  const held = new Set(rows.map((a) => a.achId));
+  const locked = specs.filter((s) => !s.earned && !held.has(s.achId)).map((s) => ({
     key: s.achId, kind: 'locked', label: s.title, icon: s.icon,
     title: s.title, detail: s.detail, remaining: s.remaining
   }));

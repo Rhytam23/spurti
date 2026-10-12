@@ -94,7 +94,24 @@ const REASON_RE = /present (\d+) of (\d+) min \(([\d.]+)%\)/;
   }
   await flush();
 
-  console.log(`Done. written=${upserted} skipped=${skipped} of ${txns.length} attendance txns`);
+  // attendancerecords must equal the ledger (decided 12 Oct 2026). Rows with no
+  // attendance transaction behind them are removed here: legacy May rows that
+  // still carried a transactionId from a wiped rebuild, rows for sessions a
+  // later rebuild stopped crediting (pre-start sessions, rejected candidates,
+  // dropped one-off sessions). Until this step existed the collection only
+  // ever grew, and the journey page showed minutes the ledger never credited.
+  const ledgerKeys = new Set(txns.map(tx => `${(tx.email || '').toLowerCase().trim()}|${tx.sessionLabel || ''}`));
+  const stale = [];
+  for (const r of await db.collection('attendancerecords').find({}, { projection: { email: 1, sessionLabel: 1, transactionId: 1 } }).toArray()) {
+    const key = `${(r.email || '').toLowerCase().trim()}|${r.sessionLabel || ''}`;
+    if (r.transactionId || !ledgerKeys.has(key)) stale.push(r._id);
+  }
+  let removed = 0;
+  for (let i = 0; i < stale.length; i += BATCH) {
+    removed += (await db.collection('attendancerecords').deleteMany({ _id: { $in: stale.slice(i, i + BATCH) } })).deletedCount;
+  }
+
+  console.log(`Done. written=${upserted} skipped=${skipped} removed=${removed} of ${txns.length} attendance txns`);
 
   // Verify for harsh007rana
   const check = await db.collection('attendancerecords')
