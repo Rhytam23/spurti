@@ -321,7 +321,7 @@ function SpaModule({ student }) {
 
   useEffect(() => {
     (async () => {
-      const r = await fetch(`${API}/spa/state`);
+      const r = await fetch(`${API}/spa/state?email=${encodeURIComponent(email)}`);
       setData(await r.json());
     })();
   }, [email]);
@@ -437,7 +437,7 @@ function useAchievements(email) {
   const [data, setData] = useState(null);
   useEffect(() => {
     let live = true;
-    fetch(`${API}/achievements`)
+    fetch(`${API}/achievements?email=${encodeURIComponent(email)}`)
       .then(r => r.json())
       .then(d => { if (live) setData(d); })
       .catch(() => { if (live) setData({ visible: false, groups: [], locked: [], counts: {} }); });
@@ -779,12 +779,12 @@ function LeaderboardPanel({ student }) {
   useEffect(() => {
     let live = true;
     setLoading(true);
-    fetch(`${API}/leaderboard/board?window=${preset.window}&category=${preset.category}&scope=${preset.scope}`)
+    fetch(`${API}/leaderboard/board?window=${preset.window}&category=${preset.category}&scope=${preset.scope}&email=${encodeURIComponent(student.email)}`)
       .then(r => r.json())
       .then(d => { if (live) { setData(d); setLoading(false); } })
       .catch(() => { if (live) setLoading(false); });
     return () => { live = false; };
-  }, [presetKey]);
+  }, [presetKey, student.email]);
   const rows = data?.rows || [];
   const me = data?.me || null;
   const meOutside = me && !rows.some(r => r.isMe);
@@ -824,7 +824,7 @@ function LeaderboardPanel({ student }) {
 function TrajectoryModal({ student, onClose }) {
   const [data, setData] = useState(null);
   useEffect(() => {
-    fetch(`${API}/trajectory/state`).then(r => r.json()).then(setData);
+    fetch(`${API}/trajectory/state?email=${encodeURIComponent(student.email)}`).then(r => r.json()).then(setData);
   }, [student.email]);
 
   const series = data ? [
@@ -1144,7 +1144,7 @@ function MyJourney({ student, goToCommitment, canCommit = false }) {
   const [err, setErr] = useState(null);
 
   const load = async () => {
-    const r = await fetch(`${API}/journey/state`);
+    const r = await fetch(`${API}/journey/state?email=${encodeURIComponent(email)}`);
     setData(await r.json());
   };
   useEffect(() => { load(); }, [email]);
@@ -1280,7 +1280,7 @@ function VibeGoals({ student }) {
   const [err, setErr] = useState(null);
 
   const load = async () => {
-    const r = await fetch(`${API}/vibe/state`);
+    const r = await fetch(`${API}/vibe/state?email=${encodeURIComponent(email)}`);
     setData(await r.json());
   };
   useEffect(() => {
@@ -1451,7 +1451,7 @@ function StandupGoals({ student }) {
   const [err, setErr] = useState(null);
 
   const load = async () => {
-    const r = await fetch(`${API}/standup/state`);
+    const r = await fetch(`${API}/standup/state?email=${encodeURIComponent(email)}`);
     setData(await r.json());
   };
   useEffect(() => { load(); }, [email]);

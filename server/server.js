@@ -336,7 +336,12 @@ api.get('/me', async (req, res) => {
 
 // ---- ViBe Goals (commitment-SP module; 16 July cohort onward) ----------------
 async function vibeStudent(req) {
-  const email = await studentEmailFromRequest(req);
+  // Identity comes from the verified Samagama session. The client-supplied
+  // email is honoured only when student search is enabled (local development
+  // without Samagama); in production ALLOW_STUDENT_SEARCH is false, so a caller
+  // can never read another student's state by passing their email.
+  const email = await studentEmailFromRequest(req)
+    || (ALLOW_STUDENT_SEARCH ? normalizeEmail(req.body?.email || req.query.email) : null);
   if (!email) return null;
   return Student.findOne({ $or: [{ email }, { alternateEmail: email }] }).lean();
 }
