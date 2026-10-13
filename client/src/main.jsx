@@ -28,12 +28,7 @@ function AppShell() {
     const send = () => fetch(`${API}/ping`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: profile.student.email,
-        name: profile.student.name,
-        page: 'record',
-        recordViewed: profile.student.email
-      })
+      body: JSON.stringify({ name: profile.student.name, page: 'record' })
     }).catch(() => {});
     send();
     const id = setInterval(send, 30000);
@@ -823,7 +818,7 @@ function LeaderboardPanel({ student }) {
   }, [presetKey, student.email]);
   const rows = data?.rows || [];
   const me = data?.me || null;
-  const meOutside = me && !rows.some(r => r.studentId === student._id);
+  const meOutside = me && !rows.some(r => r.isMe);
   return (
     <section className="panel">
       <div className="panel-head">
@@ -837,8 +832,8 @@ function LeaderboardPanel({ student }) {
         <>
           <table className="table lb-table">
             <thead><tr><th>Rank</th><th>Name</th><th>Level</th><th>SP</th></tr></thead>
-            <tbody>{rows.map(r => (
-              <tr key={r.studentId} className={r.studentId === student._id ? 'current-student' : ''}>
+            <tbody>{rows.map((r, i) => (
+              <tr key={i} className={r.isMe ? 'current-student' : ''}>
                 <td>{r.rank}</td><td>{r.name}</td><td>L{r.level}</td><td>{r.sp}</td>
               </tr>
             ))}</tbody>
@@ -1716,8 +1711,8 @@ function AdminView({ admin, auth, onBack }) {
     if (!auth?.email) return;
     const doPing = (page) => fetch(`${API}/ping`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: auth.email, name: auth.email, page })
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Email': auth.email, 'X-Admin-Token': auth.token },
+      body: JSON.stringify({ name: auth.email, page })
     }).catch(() => {});
     doPing('admin-analytics');
     const id = setInterval(() => doPing('admin-live'), 30000);
