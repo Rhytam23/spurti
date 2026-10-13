@@ -164,6 +164,9 @@ const app = express();
 // behaviour — it cannot make things worse.
 app.set('trust proxy', 1);
 const api = express.Router();
+// Express 4 does not catch a rejected promise from an async handler, so a failed
+// query would leave the request hanging. This routes it to errorHandler instead.
+wrapRouter(api);
 const liveViewers = new Map();
 
 app.use(cors());
