@@ -156,17 +156,23 @@ async function getSamagamaUser(chatengineToken) {
     return null;
   }
   let raw = null;
+  let cacheable = false; // only a definitive answer from Samagama is cached
   try {
     const res = await fetch(SAMAGAMA_AUTH_URL, {
       headers: { cookie: `chatengine_token=${chatengineToken}` },
       signal: AbortSignal.timeout(5000)
     });
-    if (res.ok) raw = await res.json();
+    if (res.ok) { raw = await res.json(); cacheable = true; }
+    else if (res.status === 401 || res.status === 403) cacheable = true; // rejected token -> negative cache
+    // 5xx and other statuses: not cached, the next request retries
   } catch {
-    // network / timeout / non-JSON body -> cache null (negative cache)
+    // network error / timeout / non-JSON body: NOT cached. Caching null here
+    // would log the student out of every route for a minute after one slow
+    // Samagama response.
+    return null;
   }
   const projected = projectAuthPayload(raw); // strips to { email, name } only
-  _samagamaCacheSet(chatengineToken, projected);
+  if (cacheable) _samagamaCacheSet(chatengineToken, projected);
   return projected;
 }
 
