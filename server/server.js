@@ -29,6 +29,8 @@ import { buildStandupState, placeStandup, settleStandupDemo } from './services/s
 import { buildJourneyState, saveJourneyPlan } from './services/journey.js';
 import { buildSpaState } from './services/spa.js';
 import { buildTrajectoryState } from './services/trajectory.js';
+import { wrapRouter } from './lib/asyncRoutes.js';
+import { errorHandler } from './lib/errorHandler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -1382,6 +1384,8 @@ if (fs.existsSync(clientDist)) {
 } else {
   app.get('*', (_req, res) => res.status(404).send('Build the client first with npm run build.'));
 }
+
+app.use(errorHandler);
 
 mongoose.connect(MONGO_URI).then(() => {
   app.listen(PORT, () => console.log(`Spurti app running at http://localhost:${PORT}/`));
