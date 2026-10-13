@@ -5,13 +5,14 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "test": "node --test test/*.test.js",
+    "test": "node --test test/*.test.js server/tests/*.test.js",
     "seed": "node server/seed-demo-local.mjs",
     "seed-announcements": "node server/seed-announcements-demo.mjs",
     "setup": "npm install && npm --prefix client install && npm run build",
     "build": "npm --prefix client run build",
     "start": "node server/server.js",
-    "dev": "node server/server.js"
+    "dev": "node server/server.js",
+    "lint": "node --check server/server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
