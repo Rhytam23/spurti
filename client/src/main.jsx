@@ -1121,113 +1121,100 @@ function Tabs({ tab, setTab, tabs }) {
   ))}</nav>;
 }
 
-function SpBank({ transactions }) {
+const CATEGORY_META = {
+  all: { label: 'All', badge: 'All' },
+  attendance: { label: 'Standups', badge: 'Standup' },
+  poll: { label: 'Session Polls', badge: 'Poll' },
+  spa: { label: 'SPA Points', badge: 'SPA' },
+  query: { label: 'Query Answers', badge: 'Query' },
+  peer_faq: { label: 'Peer FAQ', badge: 'FAQ' },
+  manual: { label: 'Manual Grants', badge: 'Manual' },
+  initial: { label: 'Joining Grant', badge: 'Initial' }
+};
+
+function SpBank({ transactions = [] }) {
   const [size, setSize] = useState(10);
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('all');
-  const [deltaFilter, setDeltaFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [deltaFilter, setDeltaFilter] = useState('all'); // credit / debit toggle (from #223)
 
-  // Server sends oldest→newest (sorted dateTime asc); show newest first.
-  const allRows = useMemo(() => [...(transactions || [])].reverse(), [transactions]);
+  // Dynamically count categories present in transactions
+  const presentCategories = useMemo(() => {
+    const counts = {};
+    for (const tx of transactions) {
+      const cat = tx.category || 'other';
+      counts[cat] = (counts[cat] || 0) + 1;
+    }
+    return counts;
+  }, [transactions]);
 
-  // Filtered rows based on search, category and delta type
+  // Server sends oldest->newest (sorted dateTime asc); show newest first, then filter.
   const filteredRows = useMemo(() => {
-    return allRows.filter(tx => {
-      // Delta filter (credits vs debits)
-      if (deltaFilter === 'credit' && tx.appliedDelta <= 0) return false;
-      if (deltaFilter === 'debit' && tx.appliedDelta >= 0) return false;
-
-      // Category filter
-      if (category !== 'all') {
-        const cat = (tx.category || '').toLowerCase();
-        const reason = (tx.reason || '').toLowerCase();
-        if (category === 'vibe') {
-          const isVibe = cat.includes('vibe') || cat.includes('bet') || cat.includes('standup') || reason.includes('vibe') || reason.includes('pledge') || reason.includes('stake');
-          if (!isVibe) return false;
-        } else if (!cat.includes(category) && !reason.includes(category)) {
+    const reversed = [...transactions].reverse();
+    const query = searchQuery.trim().toLowerCase();
+    return reversed.filter(tx => {
+      if (categoryFilter !== 'all' && (tx.category || '') !== categoryFilter) {
+        return false;
+      }
+      if (deltaFilter === 'credit' && !(tx.appliedDelta > 0)) return false;
+      if (deltaFilter === 'debit' && !(tx.appliedDelta < 0)) return false;
+      if (query) {
+        const reasonMatch = tx.reason && tx.reason.toLowerCase().includes(query);
+        const catMeta = CATEGORY_META[tx.category];
+        const catLabelMatch = catMeta && catMeta.label.toLowerCase().includes(query);
+        const rawCatMatch = tx.category && tx.category.toLowerCase().includes(query);
+        const dateMatch = new Date(tx.dateTime).toLocaleString().toLowerCase().includes(query);
+        if (!reasonMatch && !catLabelMatch && !rawCatMatch && !dateMatch) {
           return false;
         }
       }
-
-      // Live search across reason, session label, category, date, and delta amount
-      if (search.trim()) {
-        const q = search.trim().toLowerCase();
-        const r = (tx.reason || '').toLowerCase();
-        const s = (tx.sessionLabel || '').toLowerCase();
-        const c = (tx.category || '').toLowerCase();
-        const d = new Date(tx.dateTime).toLocaleString().toLowerCase();
-        const delta = String(tx.appliedDelta || '');
-        if (!r.includes(q) && !s.includes(q) && !c.includes(q) && !d.includes(q) && !delta.includes(q)) {
-          return false;
-        }
-      }
-
       return true;
     });
-  }, [allRows, search, category, deltaFilter]);
+  }, [transactions, categoryFilter, searchQuery, deltaFilter]);
+
+  const summary = useMemo(() => {
+    let credit = 0;
+    let debit = 0;
+    for (const tx of filteredRows) {
+      if (tx.appliedDelta > 0) credit += tx.appliedDelta;
+      else if (tx.appliedDelta < 0) debit += tx.appliedDelta;
+    }
+    return { credit, debit, net: credit + debit, count: filteredRows.length };
+  }, [filteredRows]);
 
   const shown = size === 'all' ? filteredRows : filteredRows.slice(0, Number(size));
 
-  // Dynamic summary calculations for the currently filtered view
-  const stats = useMemo(() => {
-    let credits = 0;
-    let debits = 0;
-    for (const tx of filteredRows) {
-      if (tx.appliedDelta > 0) credits += tx.appliedDelta;
-      else if (tx.appliedDelta < 0) debits += Math.abs(tx.appliedDelta);
-    }
-    return {
-      credits,
-      debits,
-      net: credits - debits,
-      totalCount: allRows.length,
-      filteredCount: filteredRows.length
-    };
-  }, [filteredRows, allRows]);
-
-  const hasFilters = Boolean(search.trim() || category !== 'all' || deltaFilter !== 'all');
-  const clearFilters = () => {
-    setSearch('');
-    setCategory('all');
-    setDeltaFilter('all');
-  };
-
-  const downloadCsv = (exportOnlyFiltered = false) => {
-    const dataToExport = exportOnlyFiltered ? filteredRows : allRows;
+  const downloadCsv = () => {
     const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const lines = [['Date & time', 'Category', 'Credit', 'Debit', 'Balance', 'Reason'].join(',')].concat(
-      dataToExport.map(tx => [
+      filteredRows.map(tx => [
         new Date(tx.dateTime).toLocaleString(),
-        tx.category || '',
+        CATEGORY_META[tx.category]?.label || tx.category || '',
         tx.appliedDelta > 0 ? tx.appliedDelta : '',
         tx.appliedDelta < 0 ? tx.appliedDelta : '',
         tx.balanceAfter,
         tx.reason
       ].map(esc).join(',')));
+    const filename = categoryFilter !== 'all' ? `sp-bank-${categoryFilter}.csv` : 'sp-bank-statement.csv';
     const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
     const a = document.createElement('a');
-    a.href = url;
-    a.download = exportOnlyFiltered && hasFilters ? 'sp-bank-filtered.csv' : 'sp-bank-statement.csv';
-    a.click();
+    a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
   };
 
-  const categories = [
-    { key: 'all', label: 'All Categories' },
-    { key: 'attendance', label: 'Attendance' },
-    { key: 'poll', label: 'Polls' },
-    { key: 'spa', label: 'SPA' },
-    { key: 'query', label: 'Queries' },
-    { key: 'vibe', label: 'Commitments' },
-    { key: 'initial', label: 'Initial' }
-  ];
+  const hasActiveFilters = categoryFilter !== 'all' || deltaFilter !== 'all' || searchQuery.trim().length > 0;
+  const resetFilters = () => {
+    setCategoryFilter('all');
+    setDeltaFilter('all');
+    setSearchQuery('');
+  };
 
   return (
     <section className="panel">
       <div className="panel-head">
         <div>
           <h2>SP Bank</h2>
-          <p className="muted bank-sub">Full auditable ledger of your Spurti Points balance and transactions.</p>
+          <p className="panel-subtitle">Transaction history & category ledger</p>
         </div>
         <div className="bank-controls">
           <label>Show
@@ -1238,76 +1225,83 @@ function SpBank({ transactions }) {
               <option value="all">All</option>
             </select>
           </label>
-          <button className="secondary" onClick={() => downloadCsv(hasFilters)}>
-            {hasFilters ? 'Export Filtered CSV' : 'Download CSV'}
+          <button className="secondary" onClick={downloadCsv} title="Export current view to CSV">
+            Download CSV {hasActiveFilters ? `(${filteredRows.length})` : ''}
           </button>
         </div>
       </div>
 
-      {/* Interactive Filter Suite */}
-      <div className="bank-filter-suite">
-        <div className="bank-search-row">
-          <div className="bank-search-wrap">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="Search by reason, session name, date, or amount..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="bank-search-input"
-            />
-            {search && (
-              <button className="bank-clear-input" onClick={() => setSearch('')} title="Clear search">×</button>
-            )}
-          </div>
-          <div className="bank-type-select">
-            <select value={deltaFilter} onChange={e => setDeltaFilter(e.target.value)}>
-              <option value="all">All Flow (Credits & Debits)</option>
-              <option value="credit">Credits Only (+ SP)</option>
-              <option value="debit">Debits Only (− SP)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Category Pill Switcher */}
-        <div className="bank-category-pills">
-          {categories.map(c => (
-            <button
-              key={c.key}
-              className={`bank-pill ${category === c.key ? 'active' : ''}`}
-              onClick={() => setCategory(c.key)}
-            >
-              {c.label}
-            </button>
-          ))}
-          {hasFilters && (
-            <button className="bank-pill-reset" onClick={clearFilters}>
-              Reset Filters ↺
-            </button>
+      <div className="bank-filter-bar">
+        <div className="bank-search-box">
+          <input
+            type="search"
+            placeholder="Search reason, date, or category..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="bank-search-input"
+          />
+          {searchQuery && (
+            <button type="button" className="bank-search-clear" onClick={() => setSearchQuery('')} aria-label="Clear search">×</button>
           )}
         </div>
-
-        {/* Quick Summary Metrics Bar */}
-        <div className="bank-metrics-bar">
-          <div className="bank-stat-chip credit">
-            <span>Credits:</span> <strong>+{stats.credits} SP</strong>
-          </div>
-          <div className="bank-stat-chip debit">
-            <span>Debits:</span> <strong>−{stats.debits} SP</strong>
-          </div>
-          <div className={`bank-stat-chip net ${stats.net >= 0 ? 'pos' : 'neg'}`}>
-            <span>Net in view:</span> <strong>{stats.net >= 0 ? `+${stats.net}` : stats.net} SP</strong>
-          </div>
-          <div className="bank-stat-chip count">
-            <span>Records:</span> <strong>{stats.filteredCount}</strong> of {stats.totalCount}
-          </div>
+        <div className="bank-flow-select">
+          <select value={deltaFilter} onChange={e => setDeltaFilter(e.target.value)} aria-label="Credits or debits">
+            <option value="all">Credits & debits</option>
+            <option value="credit">Credits only (+SP)</option>
+            <option value="debit">Debits only (−SP)</option>
+          </select>
+        </div>
+        <div className="bank-category-chips">
+          <button
+            type="button"
+            className={`bank-chip ${categoryFilter === 'all' ? 'active' : ''}`}
+            onClick={() => setCategoryFilter('all')}
+          >
+            All <span className="chip-count">{transactions.length}</span>
+          </button>
+          {Object.entries(CATEGORY_META).filter(([k]) => k !== 'all').map(([catKey, meta]) => {
+            const count = presentCategories[catKey] || 0;
+            if (count === 0 && !transactions.some(t => t.category === catKey)) return null;
+            return (
+              <button
+                type="button"
+                key={catKey}
+                className={`bank-chip ${categoryFilter === catKey ? 'active' : ''}`}
+                onClick={() => setCategoryFilter(catKey)}
+              >
+                {meta.label} <span className="chip-count">{count}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Bank Table */}
+      <div className="bank-summary-bar">
+        <div className="bank-summary-item">
+          <span>Transactions:</span> <strong>{summary.count}</strong>
+        </div>
+        <div className="bank-summary-item">
+          <span>Net SP:</span>
+          <strong className={summary.net >= 0 ? 'credit' : 'debit'}>
+            {summary.net > 0 ? `+${summary.net}` : summary.net}
+          </strong>
+        </div>
+        <div className="bank-summary-item muted-item">
+          <span>Credits:</span> <span className="credit">+{summary.credit}</span>
+          <span className="summary-sep">/</span>
+          <span>Debits:</span> <span className="debit">{summary.debit}</span>
+        </div>
+        {hasActiveFilters && (
+          <button type="button" className="bank-reset-link" onClick={resetFilters}>
+            Reset filters ✕
+          </button>
+        )}
+      </div>
+
       <div className="bank">
         <div className="bank-header">
           <span>Date & time</span>
+          <span>Category</span>
           <span>Credit</span>
           <span>Debit</span>
           <span>Balance</span>
@@ -1315,30 +1309,31 @@ function SpBank({ transactions }) {
         </div>
         {shown.length === 0 ? (
           <div className="bank-empty-state">
-            <p>No transactions match your search or filter criteria.</p>
-            {hasFilters && (
-              <button className="secondary" onClick={clearFilters}>Clear Filters</button>
+            <p>No transactions match your current search or filter.</p>
+            {hasActiveFilters && (
+              <button type="button" className="secondary" onClick={resetFilters}>Clear filters</button>
             )}
           </div>
         ) : (
           shown.map(tx => (
-            <div className="bank-row" key={tx._id || `${tx.dateTime}-${tx.balanceAfter}`}>
+            <div className="bank-row" key={tx._id || `${tx.dateTime}-${tx.appliedDelta}-${tx.balanceAfter}`}>
               <span>{new Date(tx.dateTime).toLocaleString()}</span>
+              <span className="bank-cat-tag">
+                <span className={`cat-badge cat-${tx.category || 'other'}`}>
+                  {CATEGORY_META[tx.category]?.badge || tx.category || 'General'}
+                </span>
+              </span>
               <strong className="credit">{tx.appliedDelta > 0 ? `+${tx.appliedDelta}` : ''}</strong>
               <strong className="debit">{tx.appliedDelta < 0 ? tx.appliedDelta : ''}</strong>
               <b>{tx.balanceAfter}</b>
-              <div className="bank-reason-cell">
-                {tx.category && <span className={`bank-cat-tag cat-${tx.category.toLowerCase()}`}>{tx.category}</span>}
-                <p>{tx.reason}</p>
-              </div>
+              <p>{tx.reason}</p>
             </div>
           ))
         )}
       </div>
-
       <p className="muted bank-foot">
-        Showing {shown.length} of {filteredRows.length} matching transactions
-        {allRows.length !== filteredRows.length ? ` (filtered from ${allRows.length} total)` : ''} — download CSV for statement.
+        Showing {typeof size === 'number' ? Math.min(size, filteredRows.length) : filteredRows.length} of {filteredRows.length} transactions
+        {hasActiveFilters ? ` (filtered from ${transactions.length} total)` : ''} — download CSV for the full statement.
       </p>
     </section>
   );
