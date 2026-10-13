@@ -172,12 +172,23 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
     let completedAllAtSource = completedAllAt ? (el.manual?.completedAllAt ? 'manual' : 'samagama') : null;
     let vibeFallbackUsed = false;
     const vibeRows = await sak.collection('act_vibe_progress').find({ email }).toArray();
+    // SPA completion (agreed with Harshdeep 13 Oct 2026): Samagama's completedAllAt
+    // never included the SPA phase (spaCompletedAt null on every eligibility row),
+    // so the cut is the LATER of their date and the SPA roster's completedAt (the
+    // 50th answered question). Rows already frozen are untouched (insert-only);
+    // the 10 certificates signed on the earlier cut stay as issued.
+    const spaRoster = await sak.collection('act_spa_rosters').findOne({ email }, { projection: { completedAt: 1 } });
+    const spaRosterDate = spaRoster?.completedAt && !isNaN(new Date(spaRoster.completedAt)) ? new Date(spaRoster.completedAt) : null;
+    if (completedAllAt && completedAllAtSource === 'samagama' && spaRosterDate && spaRosterDate > completedAllAt) {
+      completedAllAt = spaRosterDate;
+      completedAllAtSource = 'samagama+spa';
+    }
     if (!completedAllAt) {
       const spaLearnsEarly = (await sak.collection('act_spa_endorsements').find(
         { learnerEmail: email, status: { $in: SPA_GOOD } },
         { projection: { approvedAt: 1, createdAt: 1 } }).toArray())
         .map((e) => new Date(e.approvedAt || e.createdAt)).filter((d) => !isNaN(d)).sort((a, b) => a - b);
-      const spaDate = spaLearnsEarly.length >= SPA_DONE_COUNT ? spaLearnsEarly[SPA_DONE_COUNT - 1] : null;
+      const spaDate = spaRosterDate || (spaLearnsEarly.length >= SPA_DONE_COUNT ? spaLearnsEarly[SPA_DONE_COUNT - 1] : null);
       const needed = vibeRows.filter((v) => !v.exempt);
       let vibeDate = null;
       if (needed.length > 0 && needed.every((v) => v.finished || Math.round(v.completionPct || 0) >= 100)) {
