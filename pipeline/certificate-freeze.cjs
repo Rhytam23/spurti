@@ -80,6 +80,16 @@ const SIGNED_FINAL = new Set([
 const MANUAL = [
   { email: 'manyavalechaofficial@gmail.com', completedAllAt: '2026-08-14T02:08:59.579Z', minutes: 4149,
     note: 'Honours the 14 Aug completion acknowledgement (4,149 min incl. Zoom time outside stand-ups; ledger stand-up minutes 3,558). Agreed by Harshdeep 4 Oct 2026.' },
+  // Acknowledged by Samagama's cron on the old journey total; honoured 13 Oct 2026
+  // (Sakshi's decision, Manya precedent). minutes = ledger stand-ups from the
+  // reinstatement date + the real stand-ups attended before it; legacy duplicate
+  // May rows excluded. completedAllAt stays Samagama's.
+  { email: 'bhoomikabanjara902@gmail.com', minutes: 3618,
+    note: 'Honours the 22 Sep acknowledgement: ledger 3,421 + 197 min attended on Day 27-28 (16-17 Jun) before the 1 Jul reinstatement.' },
+  { email: 'deepapooja2902@gmail.com', minutes: 3657,
+    note: 'Honours the 30 Sep acknowledgement: ledger 3,548 + 109 min attended on Day 35 (25 Jun) before the 1 Jul reinstatement.' },
+  { email: 'morduneytanmay@gmail.com', minutes: 4084,
+    note: 'Honours the 10 Oct acknowledgement: ledger 2,558 + 1,526 min attended 27 May-16 Jun before the 1 Jul reinstatement (89 min of duplicate May rows excluded).' },
 ];
 // Certificate email -> email whose SP ledger is used. Rohith N R rejoined on
 // notrohith444 (2 Jul) after notrohith44 was excused; Harshdeep confirmed same
@@ -116,9 +126,16 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
   // completion; ruling 2026-09-08: the freeze is self-sufficient).
   const elig = await sak.collection('act_certificate_eligibility')
     .find({ eligible: true }).toArray();
-  for (const m of MANUAL)
-    if (!elig.some((e) => String(e.email).toLowerCase().trim() === m.email))
-      elig.push({ email: m.email, completedAllAt: m.completedAllAt, manual: m });
+  // A MANUAL entry overrides `minutes` whether or not the student is already
+  // on the eligibility list (2026-10-13: the acknowledged-but-below-3,600 cases
+  // all have eligibility rows). completedAllAt stays Samagama's unless the
+  // entry sets one. The existing certificate_finals row must be removed first:
+  // this script is insert-only.
+  for (const m of MANUAL) {
+    const el = elig.find((e) => String(e.email).toLowerCase().trim() === m.email);
+    if (el) { el.manual = m; if (m.completedAllAt) el.completedAllAt = m.completedAllAt; }
+    else elig.push({ email: m.email, completedAllAt: m.completedAllAt, manual: m });
+  }
 
   // userId -> email crosswalk (for the unreviewed-query flag), same sources as the rubric.
   const uidToEmail = new Map();
@@ -152,7 +169,7 @@ const dstr = (d) => { if (!d) return null; const x = new Date(d); return isNaN(x
     // completedAt takes the first date OUR mirror observed it finished — the
     // row's ObjectId timestamp. Earliest provable date; SP is cut there.
     let completedAllAt = el.completedAllAt ? new Date(el.completedAllAt) : null;
-    let completedAllAtSource = completedAllAt ? (el.manual ? 'manual' : 'samagama') : null;
+    let completedAllAtSource = completedAllAt ? (el.manual?.completedAllAt ? 'manual' : 'samagama') : null;
     let vibeFallbackUsed = false;
     const vibeRows = await sak.collection('act_vibe_progress').find({ email }).toArray();
     if (!completedAllAt) {
